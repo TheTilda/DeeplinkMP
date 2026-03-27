@@ -32,10 +32,8 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok', baseUrl: BASE_URL
 // Redirect short codes — PUBLIC (tracking works without login)
 app.use('/r', redirectRouter);
 
-// Serve frontend (in Docker: ./client/dist, in dev: ../client/dist)
-const clientDist = process.env.CLIENT_DIST
-  ? path.resolve(process.env.CLIENT_DIST)
-  : path.join(__dirname, '../client/dist');
+// Serve frontend
+const clientDist = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDist));
 
 app.get(/^\/(?!api|r).*/, (_req, res) => {
