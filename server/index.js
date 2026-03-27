@@ -34,7 +34,13 @@ app.use('/r', redirectRouter);
 
 // Serve frontend
 const clientDist = path.join(__dirname, '../client/dist');
-app.use(express.static(clientDist));
+app.use(express.static(clientDist, {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.js'))   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    if (filePath.endsWith('.css'))  res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    if (filePath.endsWith('.mjs'))  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  }
+}));
 
 app.get(/^\/(?!api|r).*/, (_req, res) => {
   const indexPath = path.join(clientDist, 'index.html');
