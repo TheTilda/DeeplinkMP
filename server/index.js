@@ -46,10 +46,25 @@ app.get(/^\/(?!api|r).*/, (_req, res) => {
 // --- Initial admin setup ---
 async function ensureAdminUser() {
   const existing = db.prepare('SELECT id FROM users LIMIT 1').get();
-  if (existing) return;
 
-  const username = process.env.ADMIN_USERNAME || 'admin';
-  const password = process.env.ADMIN_PASSWORD || crypto.randomBytes(8).toString('hex');
+  const envUsername = process.env.ADMIN_USERNAME;
+  const envPassword = process.env.ADMIN_PASSWORD;
+
+  if (existing) {
+    // If env vars are set — sync credentials to DB on every start
+    if (envUsername && envPassword) {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = await hashPassword(envPassword, salt);
+      db.prepare('UPDATE users SET username = ?, password_hash = ? WHERE id = ?').run(
+        envUsername, `${salt}:${hash}`, existing.id
+      );
+      console.log(`[auth] Admin credentials synced from .env (user: ${envUsername})`);
+    }
+    return;
+  }
+
+  const username = envUsername || 'admin';
+  const password = envPassword || crypto.randomBytes(8).toString('hex');
 
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = await hashPassword(password, salt);
@@ -57,7 +72,7 @@ async function ensureAdminUser() {
 
   db.prepare('INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)').run(id, username, `${salt}:${hash}`);
 
-  if (!process.env.ADMIN_PASSWORD) {
+  if (!envPassword) {
     console.log('\n╔══════════════════════════════════════════╗');
     console.log('║        ADMIN ACCOUNT CREATED             ║');
     console.log('╠══════════════════════════════════════════╣');
@@ -66,6 +81,8 @@ async function ensureAdminUser() {
     console.log('║                                          ║');
     console.log('║  ⚠️  Save this password — shown once!    ║');
     console.log('╚══════════════════════════════════════════╝\n');
+  } else {
+    console.log(`[auth] Admin account created from .env (user: ${username})`);
   }
 }
 
