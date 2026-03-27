@@ -29,6 +29,21 @@ app.use('/api/analytics', requireAuth, analyticsRouter);
 // Health check (public)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', baseUrl: BASE_URL }));
 
+// Debug: check frontend files
+app.get('/api/debug', (_req, res) => {
+  const fs = require('fs');
+  const assetsDir = path.join(clientDist, 'assets');
+  res.json({
+    clientDist,
+    distExists: fs.existsSync(clientDist),
+    indexExists: fs.existsSync(path.join(clientDist, 'index.html')),
+    assetsExists: fs.existsSync(assetsDir),
+    assets: fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir) : [],
+    cwd: process.cwd(),
+    __dirname,
+  });
+});
+
 // Redirect short codes — PUBLIC (tracking works without login)
 app.use('/r', redirectRouter);
 
