@@ -38,18 +38,36 @@ export default function Login() {
             Умные диплинки<br/>для маркетплейсов
           </h2>
           <p className="text-brand-200 text-sm leading-relaxed mb-8">
-            Создавайте короткие ссылки с UTM-трекингом для Wildberries, Ozon и Яндекс Маркет. Открывайте мобильные приложения напрямую.
+            Короткие ссылки с UTM-трекингом для Wildberries, Ozon и Яндекс Маркет. Открывают приложение напрямую.
           </p>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[
-              { label: 'Wildberries',   color: 'bg-pink-400',   dot: true },
-              { label: 'Ozon',          color: 'bg-blue-400',   dot: true },
-              { label: 'Яндекс Маркет', color: 'bg-orange-400', dot: true },
-            ].map(({ label, color }) => (
-              <div key={label} className="flex items-center gap-2.5">
-                <div className={`w-2 h-2 rounded-full ${color}`} />
-                <span className="text-white/80 text-sm">{label}</span>
+              { icon: '⚡', title: 'Мгновенный редирект', desc: 'Открывает приложение за ~100мс' },
+              { icon: '📊', title: 'Детальная аналитика', desc: 'Клики, гео, устройства, источники' },
+              { icon: '🔗', title: 'Мульти-ссылки', desc: 'Один диплинк — все маркетплейсы' },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-base shrink-0 mt-0.5">
+                  {icon}
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm">{title}</p>
+                  <p className="text-brand-200 text-xs mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mt-8 pt-6 border-t border-white/10">
+            {[
+              { value: 'WB',   label: 'Wildberries' },
+              { value: 'Ozon', label: 'Ozon' },
+              { value: 'ЯМ',   label: 'Яндекс Маркет' },
+            ].map(({ value, label }) => (
+              <div key={label} className="text-center">
+                <p className="text-white font-bold text-sm">{value}</p>
+                <p className="text-brand-300 text-xs mt-0.5">{label}</p>
               </div>
             ))}
           </div>

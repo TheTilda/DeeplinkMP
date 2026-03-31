@@ -5,15 +5,35 @@ const router = express.Router();
 
 // GET /api/analytics — overall stats
 router.get('/', (req, res) => {
-  const { period = '30' } = req.query;
+  const p = Math.min(Math.max(Number(req.query.period) || 30, 1), 365);
 
   const totalLinks  = db.prepare('SELECT COUNT(*) as v FROM links').get().v;
-  const totalClicks = db.prepare("SELECT COUNT(*) as v FROM clicks WHERE is_bot = 0 OR is_bot IS NULL").get().v;
-  const totalUnique = db.prepare("SELECT SUM(is_unique) as v FROM clicks WHERE is_bot = 0 OR is_bot IS NULL").get().v || 0;
+
+  const totalClicks = db.prepare(`
+    SELECT COUNT(*) as v FROM clicks
+    WHERE (is_bot = 0 OR is_bot IS NULL)
+      AND timestamp >= datetime('now', '-${p} days')
+  `).get().v;
+
+  const totalUnique = db.prepare(`
+    SELECT SUM(is_unique) as v FROM clicks
+    WHERE (is_bot = 0 OR is_bot IS NULL)
+      AND timestamp >= datetime('now', '-${p} days')
+  `).get().v || 0;
+
+  // Previous period for trend calculation
+  const prevTotalClicks = db.prepare(`
+    SELECT COUNT(*) as v FROM clicks
+    WHERE (is_bot = 0 OR is_bot IS NULL)
+      AND timestamp >= datetime('now', '-${p * 2} days')
+      AND timestamp < datetime('now', '-${p} days')
+  `).get().v;
 
   const clicksByMarketplace = db.prepare(`
     SELECT l.marketplace, COUNT(c.id) as clicks, SUM(c.is_unique) as unique_clicks
-    FROM links l LEFT JOIN clicks c ON c.link_id = l.id AND (c.is_bot = 0 OR c.is_bot IS NULL)
+    FROM links l LEFT JOIN clicks c ON c.link_id = l.id
+      AND (c.is_bot = 0 OR c.is_bot IS NULL)
+      AND c.timestamp >= datetime('now', '-${p} days')
     GROUP BY l.marketplace
   `).all();
 
@@ -21,31 +41,39 @@ router.get('/', (req, res) => {
     SELECT date(timestamp) as day, COUNT(*) as count, SUM(is_unique) as unique_count
     FROM clicks
     WHERE (is_bot = 0 OR is_bot IS NULL)
-      AND timestamp >= datetime('now', '-${Number(period)} days')
+      AND timestamp >= datetime('now', '-${p} days')
     GROUP BY day ORDER BY day
   `).all();
 
   const clicksByPlatform = db.prepare(`
     SELECT platform, COUNT(*) as count
-    FROM clicks WHERE is_bot = 0 OR is_bot IS NULL
+    FROM clicks
+    WHERE (is_bot = 0 OR is_bot IS NULL)
+      AND timestamp >= datetime('now', '-${p} days')
     GROUP BY platform ORDER BY count DESC
   `).all();
 
   const clicksByCountry = db.prepare(`
     SELECT country, country_code, COUNT(*) as count
-    FROM clicks WHERE (is_bot = 0 OR is_bot IS NULL) AND country != 'Unknown'
+    FROM clicks
+    WHERE (is_bot = 0 OR is_bot IS NULL) AND country != 'Unknown'
+      AND timestamp >= datetime('now', '-${p} days')
     GROUP BY country_code ORDER BY count DESC LIMIT 10
   `).all();
 
   const clicksByBrowser = db.prepare(`
     SELECT browser, COUNT(*) as count
-    FROM clicks WHERE is_bot = 0 OR is_bot IS NULL
+    FROM clicks
+    WHERE (is_bot = 0 OR is_bot IS NULL)
+      AND timestamp >= datetime('now', '-${p} days')
     GROUP BY browser ORDER BY count DESC LIMIT 8
   `).all();
 
   const topLinks = db.prepare(`
     SELECT l.*, COUNT(c.id) as clicks, SUM(c.is_unique) as unique_clicks
-    FROM links l LEFT JOIN clicks c ON c.link_id = l.id AND (c.is_bot = 0 OR c.is_bot IS NULL)
+    FROM links l LEFT JOIN clicks c ON c.link_id = l.id
+      AND (c.is_bot = 0 OR c.is_bot IS NULL)
+      AND c.timestamp >= datetime('now', '-${p} days')
     GROUP BY l.id ORDER BY clicks DESC LIMIT 10
   `).all();
 
@@ -53,6 +81,7 @@ router.get('/', (req, res) => {
     totalLinks,
     totalClicks,
     totalUnique,
+    prevTotalClicks,
     clicksByMarketplace,
     clicksByDay,
     clicksByPlatform,

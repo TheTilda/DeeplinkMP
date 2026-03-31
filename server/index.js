@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const path = require('path');
+const zlib = require('zlib');
 const { nanoid } = require('nanoid');
 
 const { router: linksRouter } = require('./routes/links');
@@ -20,6 +21,24 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 app.use(cors());
 app.use(express.json());
+
+// Gzip compression for JSON API responses
+app.use((req, res, next) => {
+  const ae = req.headers['accept-encoding'] || '';
+  if (!ae.includes('gzip') || !req.path.startsWith('/api/')) return next();
+  const _json = res.json.bind(res);
+  res.json = (data) => {
+    const buf = Buffer.from(JSON.stringify(data), 'utf8');
+    zlib.gzip(buf, (err, compressed) => {
+      if (err) return _json(data);
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', compressed.length);
+      res.end(compressed);
+    });
+  };
+  next();
+});
 
 // Auth routes (public)
 app.use('/api/auth', authRouter);

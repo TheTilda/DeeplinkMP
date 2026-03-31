@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BarChart3, Link2, MousePointerClick, TrendingUp,
+  BarChart3, Link2, MousePointerClick, TrendingUp, TrendingDown,
   Smartphone, Monitor, Apple, ArrowRight
 } from 'lucide-react';
 import {
@@ -8,6 +9,12 @@ import {
 } from 'recharts';
 import { useAnalytics } from '../hooks/useApi';
 import MarketplaceBadge from '../components/MarketplaceBadge';
+
+const PERIOD_OPTS = [
+  { label: '7д',  value: '7' },
+  { label: '30д', value: '30' },
+  { label: '90д', value: '90' },
+];
 
 const MP_COLORS  = { wb: '#CB11AB', ozon: '#005BFF', ym: '#FC3F1D' };
 const PLT_COLORS = { ios: '#007AFF', android: '#34C759', desktop: '#8E8E93' };
@@ -24,20 +31,32 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-function StatCard({ icon: Icon, label, value, accent = 'bg-brand-50 text-brand-600' }) {
+function StatCard({ icon: Icon, label, value, accent = 'bg-brand-50 text-brand-600', trend }) {
+  const trendVal = trend != null ? Math.round(trend) : null;
+  const isUp = trendVal > 0;
+  const isDown = trendVal < 0;
   return (
     <div className="stat-card">
-      <div className={`w-9 h-9 rounded-xl ${accent} flex items-center justify-center mb-2`}>
-        <Icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+      <div className={`w-10 h-10 rounded-xl ${accent} flex items-center justify-center mb-2`}>
+        <Icon className="w-[18px] h-[18px]" />
       </div>
-      <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
+      <div className="flex items-end gap-2">
+        <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
+        {trendVal !== null && trendVal !== 0 && (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-semibold mb-0.5 ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
+            {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {isUp ? '+' : ''}{trendVal}%
+          </span>
+        )}
+      </div>
       <p className="text-xs text-gray-500 mt-1">{label}</p>
     </div>
   );
 }
 
 export default function Analytics() {
-  const { data, loading } = useAnalytics();
+  const [period, setPeriod] = useState('30');
+  const { data, loading } = useAnalytics(period);
   const navigate = useNavigate();
 
   if (loading) {
@@ -52,22 +71,40 @@ export default function Analytics() {
   }
   if (!data) return null;
 
-  const { totalLinks, totalClicks, clicksByMarketplace, clicksByDay, clicksByPlatform, topLinks } = data;
+  const { totalLinks, totalClicks, prevTotalClicks, clicksByMarketplace, clicksByDay, clicksByPlatform, topLinks } = data;
   const chartData = [...(clicksByDay || [])].reverse();
   const avgPerLink = totalLinks ? Math.round(totalClicks / totalLinks) : 0;
+  const clicksTrend = prevTotalClicks > 0 ? ((totalClicks - prevTotalClicks) / prevTotalClicks) * 100 : null;
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Аналитика</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Сводная статистика по всем ссылкам</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Аналитика</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Сводная статистика по всем ссылкам</p>
+        </div>
+        <div className="flex gap-1 bg-surface-muted p-1 rounded-xl shrink-0">
+          {PERIOD_OPTS.map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => setPeriod(value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                period === value
+                  ? 'bg-white text-gray-900 shadow-card'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard icon={Link2}            label="Ссылок создано"  value={totalLinks}  accent="bg-brand-50 text-brand-600" />
-        <StatCard icon={MousePointerClick} label="Всего кликов"   value={totalClicks} accent="bg-violet-50 text-violet-600" />
+        <StatCard icon={MousePointerClick} label="Кликов за период" value={totalClicks} accent="bg-violet-50 text-violet-600" trend={clicksTrend} />
         <StatCard icon={TrendingUp}        label="Avg. на ссылку" value={avgPerLink}  accent="bg-emerald-50 text-emerald-600" />
         <StatCard icon={BarChart3}         label="Маркетплейсов"  value={clicksByMarketplace.length} accent="bg-amber-50 text-amber-600" />
       </div>
@@ -77,7 +114,7 @@ export default function Analytics() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Клики по дням</h2>
-            <p className="text-xs text-gray-400">Последние 30 дней</p>
+            <p className="text-xs text-gray-400">За последние {period} дней</p>
           </div>
         </div>
         {chartData.length === 0 ? (

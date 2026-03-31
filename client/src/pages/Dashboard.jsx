@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, BarChart2, Trash2,
   MousePointerClick, Smartphone, Monitor, Apple,
-  Link2
+  Link2, TrendingUp
 } from 'lucide-react';
 import { useLinks, useDeleteLink, useMultiLinks, useDeleteMultiLink } from '../hooks/useApi';
 import MarketplaceBadge from '../components/MarketplaceBadge';
@@ -65,6 +65,12 @@ export default function Dashboard() {
   };
 
   const totalClicks = links.reduce((s, l) => s + (l.clicks_total || 0), 0);
+  const avgClicks   = links.length ? Math.round(totalClicks / links.length) : 0;
+  const topMp       = links.reduce((best, l) => {
+    if (!best || (l.clicks_total || 0) > (best.clicks_total || 0)) return l;
+    return best;
+  }, null);
+  const topMpLabel  = topMp ? { wb: 'Wildberries', ozon: 'Ozon', ym: 'Яндекс Маркет' }[topMp.marketplace] || '—' : '—';
 
   return (
     <div className="space-y-6">
@@ -81,6 +87,40 @@ export default function Dashboard() {
           Создать ссылку
         </Link>
       </div>
+
+      {/* Summary stat cards */}
+      {allItems.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="stat-card">
+            <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+              <Link2 className="w-[18px] h-[18px]" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900 leading-none mt-2">{allItems.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Ссылок создано</p>
+          </div>
+          <div className="stat-card">
+            <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+              <MousePointerClick className="w-[18px] h-[18px]" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900 leading-none mt-2">{totalClicks}</p>
+            <p className="text-xs text-gray-500 mt-1">Всего кликов</p>
+          </div>
+          <div className="stat-card">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <TrendingUp className="w-[18px] h-[18px]" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900 leading-none mt-2">{avgClicks}</p>
+            <p className="text-xs text-gray-500 mt-1">Avg кликов / ссылка</p>
+          </div>
+          <div className="stat-card">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <BarChart2 className="w-[18px] h-[18px]" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900 leading-none mt-2 truncate">{topMpLabel}</p>
+            <p className="text-xs text-gray-500 mt-1">Топ площадка</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

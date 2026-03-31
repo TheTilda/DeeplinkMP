@@ -3,7 +3,7 @@ import { Lock, Eye, EyeOff, Check, AlertCircle, ShieldCheck } from 'lucide-react
 import { useAuth, useApiFetch } from '../hooks/useAuth';
 
 export default function Settings() {
-  const { username } = useAuth();
+  const { username, isAdmin } = useAuth();
   const apiFetch = useApiFetch();
 
   const [current,  setCurrent]  = useState('');
@@ -64,9 +64,12 @@ export default function Settings() {
           <div>
             <div className="flex items-center gap-2">
               <p className="font-semibold text-gray-900">{username}</p>
-              <span className="badge bg-brand-50 text-brand-600 border border-brand-100">Администратор</span>
+              {isAdmin
+                ? <span className="badge bg-brand-50 text-brand-600 border border-brand-100">Администратор</span>
+                : <span className="badge bg-gray-50 text-gray-600 border border-gray-200">Пользователь</span>
+              }
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">Единственный пользователь системы</p>
+            <p className="text-xs text-gray-400 mt-0.5">Управление аккаунтом</p>
           </div>
         </div>
       </div>
