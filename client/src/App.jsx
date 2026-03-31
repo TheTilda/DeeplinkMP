@@ -1,7 +1,7 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import {
   Link2, PlusCircle, BarChart3, Settings, LogOut, Zap,
-  ChevronRight, Menu, X
+  ChevronRight, Menu, X, Users
 } from 'lucide-react';
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
@@ -11,16 +11,18 @@ import LinkAnalytics from './pages/LinkAnalytics';
 import Analytics from './pages/Analytics';
 import Login from './pages/Login';
 import SettingsPage from './pages/Settings';
+import UsersPage from './pages/Users';
 
 const NAV = [
-  { path: '/',          label: 'Ссылки',     icon: Link2,      end: true },
-  { path: '/create',    label: 'Создать',    icon: PlusCircle, end: false },
-  { path: '/analytics', label: 'Аналитика',  icon: BarChart3,  end: false },
-  { path: '/settings',  label: 'Настройки',  icon: Settings,   end: false },
+  { path: '/',          label: 'Ссылки',        icon: Link2,      end: true,  adminOnly: false },
+  { path: '/create',    label: 'Создать',        icon: PlusCircle, end: false, adminOnly: false },
+  { path: '/analytics', label: 'Аналитика',      icon: BarChart3,  end: false, adminOnly: false },
+  { path: '/users',     label: 'Пользователи',   icon: Users,      end: false, adminOnly: true },
+  { path: '/settings',  label: 'Настройки',      icon: Settings,   end: false, adminOnly: false },
 ];
 
 function Sidebar({ onClose }) {
-  const { username, logout } = useAuth();
+  const { username, logout, isAdmin } = useAuth();
 
   return (
     <div className="flex flex-col h-full">
@@ -44,7 +46,7 @@ function Sidebar({ onClose }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ path, label, icon: Icon, end }) => (
+        {NAV.filter(({ adminOnly }) => !adminOnly || isAdmin).map(({ path, label, icon: Icon, end }) => (
           <NavLink
             key={path}
             to={path}
@@ -73,7 +75,7 @@ function Sidebar({ onClose }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate">{username}</div>
-            <div className="text-xs text-gray-400">Администратор</div>
+            <div className="text-xs text-gray-400">{isAdmin ? 'Администратор' : 'Пользователь'}</div>
           </div>
         </div>
         <button
@@ -147,6 +149,7 @@ function Shell() {
               <Route path="/create"    element={<CreateLink />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/links/:id" element={<LinkAnalytics />} />
+              <Route path="/users"     element={<UsersPage />} />
               <Route path="/settings"  element={<SettingsPage />} />
               <Route path="*"          element={<Navigate to="/" replace />} />
             </Routes>

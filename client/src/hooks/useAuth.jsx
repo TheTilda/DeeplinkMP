@@ -4,10 +4,12 @@ const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'dl_token';
 const USERNAME_KEY = 'dl_username';
+const ROLE_KEY = 'dl_role';
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
   const [username, setUsername] = useState(() => localStorage.getItem(USERNAME_KEY));
+  const [role, setRole] = useState(() => localStorage.getItem(ROLE_KEY) || 'user');
   const [loading, setLoading] = useState(true);
 
   // Verify token on mount
@@ -16,7 +18,11 @@ export function AuthProvider({ children }) {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => {
         if (!r.ok) logout();
-        else return r.json().then((d) => setUsername(d.username));
+        else return r.json().then((d) => {
+          setUsername(d.username);
+          setRole(d.role || 'user');
+          localStorage.setItem(ROLE_KEY, d.role || 'user');
+        });
       })
       .catch(logout)
       .finally(() => setLoading(false));
@@ -32,8 +38,10 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.error || 'Ошибка входа');
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USERNAME_KEY, data.username);
+    localStorage.setItem(ROLE_KEY, data.role || 'user');
     setToken(data.token);
     setUsername(data.username);
+    setRole(data.role || 'user');
   }, []);
 
   const logout = useCallback(() => {
@@ -41,12 +49,14 @@ export function AuthProvider({ children }) {
     if (t) fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USERNAME_KEY);
+    localStorage.removeItem(ROLE_KEY);
     setToken(null);
     setUsername(null);
+    setRole('user');
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, username, loading, login, logout, isAuth: !!token }}>
+    <AuthContext.Provider value={{ token, username, role, loading, login, logout, isAuth: !!token, isAdmin: role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );

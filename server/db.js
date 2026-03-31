@@ -8,6 +8,9 @@ db.exec(`
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    email TEXT,
+    role TEXT NOT NULL DEFAULT 'user',
+    status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -60,6 +63,12 @@ db.exec(`
     FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE
   );
 `);
+
+// Migrations for users table
+const userCols = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
+if (!userCols.includes('email'))  db.exec("ALTER TABLE users ADD COLUMN email TEXT");
+if (!userCols.includes('role'))   db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+if (!userCols.includes('status')) db.exec("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'");
 
 // Migrations: add columns that may not exist in older DBs
 const existingCols = db.prepare("PRAGMA table_info(clicks)").all().map((r) => r.name);

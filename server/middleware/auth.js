@@ -9,7 +9,7 @@ function requireAuth(req, res, next) {
   }
 
   const session = db.prepare(`
-    SELECT s.*, u.username FROM sessions s
+    SELECT s.*, u.username, u.role, u.status FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token = ? AND s.expires_at > datetime('now')
   `).get(token);
@@ -18,8 +18,15 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
 
-  req.user = { id: session.user_id, username: session.username };
+  req.user = { id: session.user_id, username: session.username, role: session.role };
   next();
 }
 
-module.exports = { requireAuth };
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireAdmin };

@@ -17,6 +17,35 @@ function hashPassword(password, salt) {
   });
 }
 
+// POST /api/auth/register
+router.post('/register', async (req, res) => {
+  const { username, password, email } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'username and password are required' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Пароль должен быть не менее 8 символов' });
+  }
+  if (username.length < 3) {
+    return res.status(400).json({ error: 'Логин должен быть не менее 3 символов' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (existing) {
+    return res.status(409).json({ error: 'Пользователь с таким логином уже существует' });
+  }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = await hashPassword(password, salt);
+  const id = nanoid(10);
+
+  db.prepare('INSERT INTO users (id, username, password_hash, email, role, status) VALUES (?, ?, ?, ?, ?, ?)').run(
+    id, username, `${salt}:${hash}`, email || null, 'user', 'pending'
+  );
+
+  res.status(201).json({ message: 'Заявка отправлена. Ожидайте подтверждения администратора.' });
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -37,6 +66,13 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Неверный логин или пароль' });
   }
 
+  if (user.status === 'pending') {
+    return res.status(403).json({ error: 'Аккаунт ожидает подтверждения администратора' });
+  }
+  if (user.status === 'rejected') {
+    return res.status(403).json({ error: 'Аккаунт отклонён администратором' });
+  }
+
   const token = nanoid(48);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -48,7 +84,7 @@ router.post('/login', async (req, res) => {
   // cleanup old sessions for this user
   db.prepare("DELETE FROM sessions WHERE user_id = ? AND expires_at < datetime('now')").run(user.id);
 
-  res.json({ token, username: user.username, expires_at: expiresAt });
+  res.json({ token, username: user.username, role: user.role, expires_at: expiresAt });
 });
 
 // POST /api/auth/logout
@@ -60,7 +96,7 @@ router.post('/logout', requireAuth, (req, res) => {
 
 // GET /api/auth/me
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ username: req.user.username });
+  res.json({ username: req.user.username, role: req.user.role });
 });
 
 // POST /api/auth/change-password

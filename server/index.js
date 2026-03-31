@@ -9,7 +9,8 @@ const { router: linksRouter } = require('./routes/links');
 const analyticsRouter = require('./routes/analytics');
 const redirectRouter = require('./routes/redirect');
 const { router: authRouter, hashPassword } = require('./routes/auth');
-const { requireAuth } = require('./middleware/auth');
+const adminRouter = require('./routes/admin');
+const { requireAuth, requireAdmin } = require('./middleware/auth');
 const db = require('./db');
 
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/auth', authRouter);
 // Protected API routes
 app.use('/api/links', requireAuth, linksRouter);
 app.use('/api/analytics', requireAuth, analyticsRouter);
+app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 
 // Health check (public)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', baseUrl: BASE_URL }));
@@ -76,8 +78,8 @@ async function ensureAdminUser() {
     if (envUsername && envPassword) {
       const salt = crypto.randomBytes(16).toString('hex');
       const hash = await hashPassword(envPassword, salt);
-      db.prepare('UPDATE users SET username = ?, password_hash = ? WHERE id = ?').run(
-        envUsername, `${salt}:${hash}`, existing.id
+      db.prepare('UPDATE users SET username = ?, password_hash = ?, role = ?, status = ? WHERE id = ?').run(
+        envUsername, `${salt}:${hash}`, 'admin', 'approved', existing.id
       );
       console.log(`[auth] Admin credentials synced from .env (user: ${envUsername})`);
     }
@@ -91,7 +93,7 @@ async function ensureAdminUser() {
   const hash = await hashPassword(password, salt);
   const id = nanoid(10);
 
-  db.prepare('INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)').run(id, username, `${salt}:${hash}`);
+  db.prepare('INSERT INTO users (id, username, password_hash, role, status) VALUES (?, ?, ?, ?, ?)').run(id, username, `${salt}:${hash}`, 'admin', 'approved');
 
   if (!envPassword) {
     console.log('\n╔══════════════════════════════════════════╗');
