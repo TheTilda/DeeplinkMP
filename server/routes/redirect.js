@@ -63,23 +63,31 @@ function buildRedirectPage(appUrl, webUrl, mp) {
   <div class="card">
     <div class="badge"><span class="dot"></span>${mp.name}</div>
     <h2>Открываем приложение</h2>
-    <p>Переадресация выполняется автоматически. Если приложение не открылось — нажмите кнопку ниже.</p>
-    <a href="${appUrl}" class="btn-app"><span class="spin"></span>Открыть в приложении</a>
+    <p id="hint">Нажмите кнопку, чтобы открыть приложение</p>
+    <a href="${appUrl}" class="btn-app" id="btn-app"><span class="spin" id="spin" style="display:none"></span>Открыть в приложении</a>
     <a href="${webUrl}" class="btn-web">Открыть в браузере</a>
   </div>
   <script>
     (function(){
-      var launched = false;
-      function launch(){
-        if(launched) return;
-        launched = true;
-        window.location.href = '${appUrl}';
+      var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      var btn = document.getElementById('btn-app');
+      var spin = document.getElementById('spin');
+      var hint = document.getElementById('hint');
+
+      if (isIOS) {
+        // iOS: Universal Links only fire on native anchor tap — never intercept with JS.
+        // Just make the button prominent; do NOT preventDefault or window.location.href.
+        hint.textContent = 'Нажмите кнопку — откроется приложение';
+      } else {
+        // Android: intent:// works fine via window.location.href
+        hint.textContent = 'Переход в приложение...';
+        spin.style.display = 'inline-block';
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          window.location.href = '${appUrl}';
+        });
+        setTimeout(function(){ window.location.href = '${appUrl}'; }, 100);
       }
-      setTimeout(launch, 100);
-      document.querySelector('.btn-app').addEventListener('click', function(e){
-        e.preventDefault();
-        launch();
-      });
     })();
   <\/script>
 </body>
