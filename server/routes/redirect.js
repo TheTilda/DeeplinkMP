@@ -135,13 +135,33 @@ router.get('/:code', (req, res) => {
 
     if (link.marketplace === 'wb') {
       const m = link.original_url.match(/\/catalog\/(\d+)\//);
-      if (m) appUrl = `wildberries://product?id=${m[1]}`;
+      if (m) {
+        if (platform === 'android') {
+          // App Links: Android opens WB app and handles the URL → correct product page
+          appUrl = `intent://www.wildberries.ru/catalog/${m[1]}/detail.aspx#Intent;scheme=https;package=com.wildberries.ru;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+        } else {
+          // iOS: no public deeplink to specific product — opens app via custom scheme
+          appUrl = `wildberries://product?id=${m[1]}`;
+        }
+      }
     } else if (link.marketplace === 'ozon') {
       const m = link.original_url.match(/\/product\/([^/?#]+)/);
-      if (m) appUrl = `ozon://product/${m[1]}`;
+      if (m) {
+        if (platform === 'android') {
+          appUrl = `intent://www.ozon.ru/product/${m[1]}#Intent;scheme=https;package=ru.ozon.app.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+        } else {
+          appUrl = `ozon://product/${m[1]}`;
+        }
+      }
     } else if (link.marketplace === 'ym') {
       const m = link.original_url.match(/\/product\/(\d+)/);
-      if (m) appUrl = `yamarket://product?id=${m[1]}`;
+      if (m) {
+        if (platform === 'android') {
+          appUrl = `intent://market.yandex.ru/product/${m[1]}#Intent;scheme=https;package=ru.yandex.market;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+        } else {
+          appUrl = `yamarket://product?id=${m[1]}`;
+        }
+      }
     }
 
     if (appUrl) return res.send(buildRedirectPage(appUrl, webUrl, mp));
