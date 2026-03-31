@@ -1,0 +1,234 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1774964356050,
+  "projectRoot": "/Users/thetilda/Desktop/Рабочий стол/DeepLinker",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "install:all": "cd server && npm install && cd ../client && npm install",
+      "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+      "dev:server": "cd server && npm run dev",
+      "dev:client": "cd client && npm run dev",
+      "build": "cd client && npm install && npm run build && cd ../server && npm install",
+      "start": "node --experimental-sqlite server/index.js"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "client": {
+      "path": "client",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1774964356021,
+      "keyFiles": [
+        "index.html",
+        "package-lock.json",
+        "package.json",
+        "postcss.config.js",
+        "tailwind.config.js"
+      ]
+    },
+    "server": {
+      "path": "server",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1774964356021,
+      "keyFiles": [
+        "db.js",
+        "deeplinker.db",
+        "index.js",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "client/dist": {
+      "path": "client/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 1,
+      "lastAccessed": 1774964356024,
+      "keyFiles": [
+        "index.html"
+      ]
+    },
+    "client/node_modules": {
+      "path": "client/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1774964356026,
+      "keyFiles": []
+    },
+    "client/src": {
+      "path": "client/src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1774964356027,
+      "keyFiles": [
+        "App.jsx",
+        "index.css",
+        "main.jsx"
+      ]
+    },
+    "server/middleware": {
+      "path": "server/middleware",
+      "purpose": "Middleware",
+      "fileCount": 1,
+      "lastAccessed": 1774964356027,
+      "keyFiles": [
+        "auth.js"
+      ]
+    },
+    "server/node_modules": {
+      "path": "server/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1774964356029,
+      "keyFiles": []
+    },
+    "server/routes": {
+      "path": "server/routes",
+      "purpose": "Route handlers",
+      "fileCount": 6,
+      "lastAccessed": 1774964356029,
+      "keyFiles": [
+        "admin.js",
+        "analytics.js",
+        "auth.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "server/routes/redirect.js",
+      "accessCount": 14,
+      "lastAccessed": 1774966454607,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 6,
+      "lastAccessed": 1774964867672,
+      "type": "directory"
+    },
+    {
+      "path": "client/src/pages/Analytics.jsx",
+      "accessCount": 5,
+      "lastAccessed": 1774965063220,
+      "type": "file"
+    },
+    {
+      "path": "server/index.js",
+      "accessCount": 4,
+      "lastAccessed": 1774964900889,
+      "type": "file"
+    },
+    {
+      "path": "client/src/pages/Dashboard.jsx",
+      "accessCount": 4,
+      "lastAccessed": 1774965086201,
+      "type": "file"
+    },
+    {
+      "path": "client/src/pages/Settings.jsx",
+      "accessCount": 4,
+      "lastAccessed": 1774965117162,
+      "type": "file"
+    },
+    {
+      "path": "server/routes/analytics.js",
+      "accessCount": 3,
+      "lastAccessed": 1774965021967,
+      "type": "file"
+    },
+    {
+      "path": "client/src/pages/Login.jsx",
+      "accessCount": 3,
+      "lastAccessed": 1774965101932,
+      "type": "file"
+    },
+    {
+      "path": "client/src/hooks/useApi.js",
+      "accessCount": 2,
+      "lastAccessed": 1774964826434,
+      "type": "file"
+    },
+    {
+      "path": "client/src/index.css",
+      "accessCount": 2,
+      "lastAccessed": 1774964842947,
+      "type": "file"
+    },
+    {
+      "path": "client/src/pages/LinkAnalytics.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1774964843365,
+      "type": "file"
+    },
+    {
+      "path": "server/package.json",
+      "accessCount": 2,
+      "lastAccessed": 1774964871951,
+      "type": "file"
+    },
+    {
+      "path": "client/src/hooks/useAuth.jsx",
+      "accessCount": 2,
+      "lastAccessed": 1774964985207,
+      "type": "file"
+    },
+    {
+      "path": "client",
+      "accessCount": 1,
+      "lastAccessed": 1774964637696,
+      "type": "directory"
+    },
+    {
+      "path": "client/src/App.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1774964658708,
+      "type": "file"
+    },
+    {
+      "path": "client/src/pages/CreateLink.jsx",
+      "accessCount": 1,
+      "lastAccessed": 1774964667056,
+      "type": "file"
+    },
+    {
+      "path": "client/tailwind.config.js",
+      "accessCount": 1,
+      "lastAccessed": 1774964674085,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

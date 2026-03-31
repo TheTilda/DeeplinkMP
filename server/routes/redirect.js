@@ -79,17 +79,17 @@ function buildRedirectPage(appUrl, webUrl, mp, marketplace) {
       var hint = document.getElementById('hint');
 
       if (isIOS && iosAutoRedirect) {
-        // Ozon / YM on iOS: window.location.href to their domain triggers Universal Links.
-        // Button stays as plain anchor (backup if auto-redirect fails).
+        // Ozon / YM on iOS: navigating to their domain triggers Universal Links / smart banner.
+        // Must use 350ms delay — Safari blocks JS navigation that fires under ~300ms without gesture.
+        // Button stays as plain <a> (no e.preventDefault) so native tap also works.
         hint.textContent = 'Переход в приложение...';
         spin.style.display = 'inline-block';
-        setTimeout(function(){ window.location.href = '${appUrl}'; }, 100);
+        setTimeout(function(){ window.location.href = '${appUrl}'; }, 350);
       } else if (isIOS) {
-        // WB on iOS: JS navigation does NOT trigger Universal Links for WB.
-        // Only a native user tap on the <a> element does — so don't intercept.
-        hint.textContent = 'Нажмите кнопку — откроется приложение Wildberries';
+        // WB on iOS: JS navigation does NOT open the WB app — only native anchor tap does.
+        hint.textContent = 'Нажмите кнопку — откроется приложение';
       } else {
-        // Android: intent:// works via window.location.href for all marketplaces.
+        // Android: intent:// works reliably via window.location.href.
         hint.textContent = 'Переход в приложение...';
         spin.style.display = 'inline-block';
         btn.addEventListener('click', function(e){
