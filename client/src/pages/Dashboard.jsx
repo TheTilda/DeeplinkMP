@@ -5,15 +5,16 @@ import {
   MousePointerClick, Smartphone, Monitor, Apple,
   Link2
 } from 'lucide-react';
-import { useLinks, useDeleteLink } from '../hooks/useApi';
+import { useLinks, useDeleteLink, useMultiLinks, useDeleteMultiLink } from '../hooks/useApi';
 import MarketplaceBadge from '../components/MarketplaceBadge';
 import CopyButton from '../components/CopyButton';
 
 const MP_FILTERS = [
-  { id: 'all',  label: 'Все' },
-  { id: 'wb',   label: 'WB' },
-  { id: 'ozon', label: 'Ozon' },
-  { id: 'ym',   label: 'Я.Маркет' },
+  { id: 'all',   label: 'Все' },
+  { id: 'wb',    label: 'WB' },
+  { id: 'ozon',  label: 'Ozon' },
+  { id: 'ym',    label: 'Я.Маркет' },
+  { id: 'multi', label: 'Мульти' },
 ];
 
 function formatDate(dt) {
@@ -33,24 +34,34 @@ function PlatformIcons({ ios, android, desktop }) {
 
 export default function Dashboard() {
   const { links, loading, error, refetch } = useLinks();
+  const { multiLinks, loading: mlLoading, refetch: refetchMulti } = useMultiLinks();
   const deleteLink = useDeleteLink();
+  const deleteMultiLink = useDeleteMultiLink();
   const navigate = useNavigate();
   const [search, setSearch]   = useState('');
   const [mpFilter, setMpFilter] = useState('all');
   const [deleting, setDeleting] = useState(null);
 
-  const filtered = links.filter((l) => {
+  // Merge single + multi links for display
+  const allItems = [
+    ...links.map((l) => ({ ...l, _type: 'single' })),
+    ...multiLinks.map((l) => ({ ...l, _type: 'multi', marketplace: 'multi', clicks_total: 0, clicks_ios: 0, clicks_android: 0, clicks_desktop: 0 })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const filtered = allItems.filter((l) => {
     const matchMp = mpFilter === 'all' || l.marketplace === mpFilter;
     const matchS  = !search || l.name.toLowerCase().includes(search.toLowerCase());
     return matchMp && matchS;
   });
 
-  const handleDelete = async (id, e) => {
+  const handleDelete = async (item, e) => {
     e.stopPropagation();
     if (!confirm('Удалить эту ссылку и все её данные?')) return;
-    setDeleting(id);
-    try { await deleteLink(id); refetch(); }
-    finally { setDeleting(null); }
+    setDeleting(item.id);
+    try {
+      if (item._type === 'multi') { await deleteMultiLink(item.id); refetchMulti(); }
+      else { await deleteLink(item.id); refetch(); }
+    } finally { setDeleting(null); }
   };
 
   const totalClicks = links.reduce((s, l) => s + (l.clicks_total || 0), 0);
@@ -62,7 +73,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Ссылки</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {links.length} ссылок · {totalClicks} кликов
+            {allItems.length} ссылок · {totalClicks} кликов
           </p>
         </div>
         <Link to="/create" className="btn-primary">
@@ -144,40 +155,42 @@ export default function Dashboard() {
             <tbody>
               {filtered.map((link) => {
                 const shortUrl = `${window.location.origin}/r/${link.short_code}`;
+                const isMulti = link._type === 'multi';
                 return (
                   <tr
                     key={link.id}
-                    className="table-row cursor-pointer"
-                    onClick={() => navigate(`/links/${link.id}`)}
+                    className={`table-row ${isMulti ? 'cursor-default' : 'cursor-pointer'}`}
+                    onClick={() => !isMulti && navigate(`/links/${link.id}`)}
                   >
                     {/* Name */}
                     <td className="td max-w-[200px]">
                       <div className="font-medium text-gray-900 truncate">{link.name}</div>
-                      <a
-                        href={link.original_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-gray-400 hover:text-brand-600 truncate block max-w-[180px] transition-colors"
-                      >
-                        {link.original_url}
-                      </a>
+                      {isMulti ? (
+                        <div className="text-xs text-gray-400 truncate">
+                          {[link.wb_url && 'WB', link.ozon_url && 'Ozon', link.ym_url && 'ЯМ'].filter(Boolean).join(' · ')}
+                        </div>
+                      ) : (
+                        <a href={link.original_url} target="_blank" rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-gray-400 hover:text-brand-600 truncate block max-w-[180px] transition-colors">
+                          {link.original_url}
+                        </a>
+                      )}
                     </td>
 
                     {/* Marketplace */}
                     <td className="td">
-                      <MarketplaceBadge marketplace={link.marketplace} />
+                      {isMulti
+                        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">Мульти</span>
+                        : <MarketplaceBadge marketplace={link.marketplace} />
+                      }
                     </td>
 
                     {/* Short URL */}
                     <td className="td" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1.5">
-                        <a
-                          href={shortUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-mono text-xs text-brand-600 hover:underline"
-                        >
+                        <a href={shortUrl} target="_blank" rel="noreferrer"
+                          className="font-mono text-xs text-brand-600 hover:underline">
                           /r/{link.short_code}
                         </a>
                         <CopyButton text={shortUrl} />
@@ -194,7 +207,10 @@ export default function Dashboard() {
 
                     {/* Platforms */}
                     <td className="td">
-                      <PlatformIcons ios={link.clicks_ios} android={link.clicks_android} desktop={link.clicks_desktop} />
+                      {isMulti
+                        ? <span className="text-gray-300 text-xs">—</span>
+                        : <PlatformIcons ios={link.clicks_ios} android={link.clicks_android} desktop={link.clicks_desktop} />
+                      }
                     </td>
 
                     {/* Date */}
@@ -203,19 +219,15 @@ export default function Dashboard() {
                     {/* Actions */}
                     <td className="td" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
-                        <button
-                          onClick={() => navigate(`/links/${link.id}`)}
-                          className="btn-icon btn-ghost text-gray-400 hover:text-brand-600"
-                          title="Аналитика"
-                        >
-                          <BarChart2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDelete(link.id, e)}
+                        {!isMulti && (
+                          <button onClick={() => navigate(`/links/${link.id}`)}
+                            className="btn-icon btn-ghost text-gray-400 hover:text-brand-600" title="Аналитика">
+                            <BarChart2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={(e) => handleDelete(link, e)}
                           disabled={deleting === link.id}
-                          className="btn-icon btn-ghost text-gray-400 hover:text-red-500"
-                          title="Удалить"
-                        >
+                          className="btn-icon btn-ghost text-gray-400 hover:text-red-500" title="Удалить">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

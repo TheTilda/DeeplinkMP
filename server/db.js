@@ -64,6 +64,18 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS multi_links (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    short_code TEXT UNIQUE NOT NULL,
+    wb_url TEXT,
+    ozon_url TEXT,
+    ym_url TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Migrations for users table
 const userCols = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
 if (!userCols.includes('email'))  db.exec("ALTER TABLE users ADD COLUMN email TEXT");

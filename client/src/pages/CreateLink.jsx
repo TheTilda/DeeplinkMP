@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Link2, Tag, ChevronDown, ChevronUp,
-  Check, BarChart2, Plus, Info
+  Check, BarChart2, Plus, Info, Layers
 } from 'lucide-react';
-import { useCreateLink } from '../hooks/useApi';
+import { useCreateLink, useCreateMultiLink } from '../hooks/useApi';
 import CopyButton from '../components/CopyButton';
 
 const MARKETPLACES = [
@@ -68,6 +68,14 @@ const UTM_FIELDS = [
 ];
 
 export default function CreateLink() {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState('single'); // 'single' | 'multi'
+
+  if (mode === 'multi') return <CreateMultiLink onBack={() => setMode('single')} />;
+  return <CreateSingleLink onSwitchToMulti={() => setMode('multi')} />;
+}
+
+function CreateSingleLink({ onSwitchToMulti }) {
   const navigate = useNavigate();
   const createLink = useCreateLink();
 
@@ -155,10 +163,18 @@ export default function CreateLink() {
         <button onClick={() => navigate('/')} className="btn-icon btn-ghost text-gray-400">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">Создать ссылку</h1>
           <p className="text-sm text-gray-500">Диплинк с трекингом для маркетплейса</p>
         </div>
+        <button
+          type="button"
+          onClick={onSwitchToMulti}
+          className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-800 font-medium transition-colors"
+        >
+          <Layers className="w-4 h-4" />
+          Мульти-ссылка
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -299,6 +315,132 @@ export default function CreateLink() {
           ) : (
             <><Link2 className="w-4 h-4" /> Создать диплинк</>
           )}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+const MP_MULTI = [
+  { id: 'wb',   label: 'Wildberries',   dot: 'bg-wb',   placeholder: 'https://www.wildberries.ru/catalog/...' },
+  { id: 'ozon', label: 'Ozon',          dot: 'bg-ozon', placeholder: 'https://www.ozon.ru/product/...' },
+  { id: 'ym',   label: 'Яндекс Маркет', dot: 'bg-ym',   placeholder: 'https://market.yandex.ru/product/...' },
+];
+
+function CreateMultiLink({ onBack }) {
+  const navigate = useNavigate();
+  const createMultiLink = useCreateMultiLink();
+
+  const [name, setName] = useState('');
+  const [urls, setUrls] = useState({ wb: '', ozon: '', ym: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [created, setCreated] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const link = await createMultiLink({
+        name,
+        wb_url:   urls.wb   || undefined,
+        ozon_url: urls.ozon || undefined,
+        ym_url:   urls.ym   || undefined,
+      });
+      setCreated(link);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (created) {
+    const shortUrl = `${window.location.origin}/r/${created.short_code}`;
+    return (
+      <div className="max-w-lg mx-auto space-y-4 animate-slide-up">
+        <div className="card p-8 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center mx-auto mb-5">
+            <Check className="w-8 h-8 text-green-500" strokeWidth={2.5} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Мульти-ссылка создана!</h2>
+          <p className="text-sm text-gray-500 mb-6">{created.name}</p>
+          <div className="bg-brand-50 border border-brand-100 rounded-2xl p-5 mb-4 text-left">
+            <p className="text-xs font-semibold text-brand-500 mb-2 uppercase tracking-wide">Короткая ссылка</p>
+            <p className="font-mono font-bold text-brand-700 text-base break-all mb-3">{shortUrl}</p>
+            <CopyButton text={shortUrl} label className="w-full justify-center py-2" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => { setCreated(null); setName(''); setUrls({ wb: '', ozon: '', ym: '' }); }} className="btn-secondary">
+              <Plus className="w-4 h-4" /> Ещё одну
+            </button>
+            <button onClick={() => navigate('/')} className="btn-primary">
+              <BarChart2 className="w-4 h-4" /> К ссылкам
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-5 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="btn-icon btn-ghost text-gray-400">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Мульти-ссылка</h1>
+          <p className="text-sm text-gray-500">Один диплинк — выбор маркетплейса при переходе</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="card p-5">
+          <label className="label"><div className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-gray-400" /> Название</div></label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Например: Кроссовки Nike — все площадки"
+            className="input"
+            required
+            autoFocus
+          />
+        </div>
+
+        <div className="card p-5 space-y-4">
+          <p className="label"><div className="flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5 text-gray-400" /> Ссылки на маркетплейсы</div></p>
+          <p className="text-xs text-gray-400 -mt-2">Добавьте хотя бы одну. Только добавленные МП будут показаны при выборе.</p>
+          {MP_MULTI.map(({ id, label, dot, placeholder }) => (
+            <div key={id}>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
+                <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
+                {label}
+              </label>
+              <input
+                type="url"
+                value={urls[id]}
+                onChange={(e) => setUrls((p) => ({ ...p, [id]: e.target.value }))}
+                placeholder={placeholder}
+                className="input"
+              />
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+            <Info className="w-4 h-4 shrink-0" />{error}
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+          {loading
+            ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Создаём...</>
+            : <><Layers className="w-4 h-4" /> Создать мульти-ссылку</>
+          }
         </button>
       </form>
     </div>

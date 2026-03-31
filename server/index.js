@@ -10,6 +10,7 @@ const analyticsRouter = require('./routes/analytics');
 const redirectRouter = require('./routes/redirect');
 const { router: authRouter, hashPassword } = require('./routes/auth');
 const adminRouter = require('./routes/admin');
+const multilinksRouter = require('./routes/multilinks');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 const db = require('./db');
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/links', requireAuth, linksRouter);
 app.use('/api/analytics', requireAuth, analyticsRouter);
 app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
+app.use('/api/multilinks', requireAuth, multilinksRouter);
 
 // Health check (public)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', baseUrl: BASE_URL }));

@@ -60,6 +60,45 @@ export function useLinkAnalytics(id, period = '30') {
   return { data, loading, error };
 }
 
+export function useMultiLinks() {
+  const apiFetch = useApiFetch();
+  const [multiLinks, setMultiLinks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMultiLinks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/multilinks');
+      setMultiLinks(await res.json());
+    } catch {
+      setMultiLinks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiFetch]);
+
+  useEffect(() => { fetchMultiLinks(); }, [fetchMultiLinks]);
+  return { multiLinks, loading, refetch: fetchMultiLinks };
+}
+
+export function useCreateMultiLink() {
+  const apiFetch = useApiFetch();
+  return useCallback(async (payload) => {
+    const res = await apiFetch('/api/multilinks', { method: 'POST', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка при создании');
+    return data;
+  }, [apiFetch]);
+}
+
+export function useDeleteMultiLink() {
+  const apiFetch = useApiFetch();
+  return useCallback(async (id) => {
+    const res = await apiFetch(`/api/multilinks/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Ошибка при удалении');
+  }, [apiFetch]);
+}
+
 export function useAnalytics(period = '30') {
   const apiFetch = useApiFetch();
   const [data,    setData]    = useState(null);

@@ -66,7 +66,112 @@ function buildRedirectPage(appUrl, webUrl, mp) {
 </html>`;
 }
 
+function buildMultiSelectPage(multiLink, code) {
+  const MP_META = {
+    wb:   { name: 'Wildberries', color: '#CB11AB', emoji: '🛍️' },
+    ozon: { name: 'Ozon',        color: '#005BFF', emoji: '🔵' },
+    ym:   { name: 'Яндекс Маркет', color: '#FC3F1D', emoji: '🟠' },
+  };
+
+  const available = [
+    multiLink.wb_url   && { id: 'wb',   url: multiLink.wb_url },
+    multiLink.ozon_url && { id: 'ozon', url: multiLink.ozon_url },
+    multiLink.ym_url   && { id: 'ym',   url: multiLink.ym_url },
+  ].filter(Boolean);
+
+  const buttons = available.map(({ id, url }) => {
+    const m = MP_META[id];
+    return `<a href="/r/${code}?mp=${id}" class="btn-mp" style="--c:${m.color}">
+      <span class="emoji">${m.emoji}</span>
+      <span class="label">${m.name}</span>
+      <span class="arrow">→</span>
+    </a>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Выберите маркетплейс</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f8fc;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .card{background:#fff;border-radius:20px;padding:36px 28px;max-width:360px;width:100%;text-align:center;box-shadow:0 4px 32px rgba(0,0,0,0.08),0 0 0 1px rgba(0,0,0,0.04)}
+    h2{font-size:18px;font-weight:700;color:#111;margin-bottom:6px}
+    p{font-size:13px;color:#999;margin-bottom:24px;line-height:1.5}
+    .buttons{display:flex;flex-direction:column;gap:10px}
+    .btn-mp{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;background:color-mix(in srgb,var(--c) 8%,#fff);border:1.5px solid color-mix(in srgb,var(--c) 25%,#fff);border-radius:14px;text-decoration:none;transition:all .15s;cursor:pointer}
+    .btn-mp:hover{background:color-mix(in srgb,var(--c) 14%,#fff);border-color:color-mix(in srgb,var(--c) 40%,#fff)}
+    .emoji{font-size:22px;width:32px;text-align:center;flex-shrink:0}
+    .label{flex:1;font-size:15px;font-weight:600;color:#111;text-align:left}
+    .arrow{font-size:16px;color:#ccc}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Выберите маркетплейс</h2>
+    <p>${multiLink.name}</p>
+    <div class="buttons">${buttons}</div>
+  </div>
+</body>
+</html>`;
+}
+
 router.get('/:code', (req, res) => {
+  // Check multi_links first
+  const multiLink = db.prepare('SELECT * FROM multi_links WHERE short_code = ?').get(req.params.code);
+  if (multiLink) {
+    const mp = req.query.mp;
+    const urlMap = { wb: multiLink.wb_url, ozon: multiLink.ozon_url, ym: multiLink.ym_url };
+
+    if (mp && urlMap[mp]) {
+      // Redirect to the chosen marketplace using deeplink logic
+      const ua = req.headers['user-agent'] || '';
+      const parser = new UAParser(ua);
+      const osInfo = parser.getOS();
+      const os = osInfo.name || 'Unknown';
+      let platform = 'desktop';
+      if (/ios|iphone os/i.test(os)) platform = 'ios';
+      else if (/android/i.test(os)) platform = 'android';
+
+      const webUrl = urlMap[mp];
+      const mpMeta = { wb: { name: 'Wildberries', color: '#CB11AB' }, ozon: { name: 'Ozon', color: '#005BFF' }, ym: { name: 'Яндекс Маркет', color: '#FC3F1D' } };
+      const mpObj = mpMeta[mp];
+
+      if (platform === 'desktop') return res.redirect(302, webUrl);
+
+      let appUrl = null;
+      if (mp === 'wb') {
+        const m = webUrl.match(/\/catalog\/(\d+)\//);
+        if (m) {
+          appUrl = platform === 'android'
+            ? `intent://www.wildberries.ru/catalog/${m[1]}/detail.aspx#Intent;scheme=https;package=com.wildberries.ru;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+            : webUrl;
+        }
+      } else if (mp === 'ozon') {
+        const m = webUrl.match(/\/product\/([^/?#]+)/);
+        if (m) {
+          appUrl = platform === 'android'
+            ? `intent://www.ozon.ru/product/${m[1]}#Intent;scheme=https;package=ru.ozon.app.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+            : webUrl;
+        }
+      } else if (mp === 'ym') {
+        const m = webUrl.match(/\/product\/(\d+)/);
+        if (m) {
+          appUrl = platform === 'android'
+            ? `intent://market.yandex.ru/product/${m[1]}#Intent;scheme=https;package=ru.yandex.market;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+            : webUrl;
+        }
+      }
+
+      return res.send(buildRedirectPage(appUrl || webUrl, webUrl, mpObj));
+    }
+
+    // No mp chosen — show selection page
+    return res.send(buildMultiSelectPage(multiLink, req.params.code));
+  }
+
   const link = db.prepare('SELECT * FROM links WHERE short_code = ?').get(req.params.code);
   if (!link) return res.status(404).send('Link not found');
 
