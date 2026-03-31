@@ -31,7 +31,10 @@ function getRefererDomain(referer) {
   }
 }
 
-function buildRedirectPage(appUrl, webUrl, mp) {
+// iosAutoRedirect=true  → Ozon/YM: window.location.href triggers Universal Links on iOS
+// iosAutoRedirect=false → WB: JS navigation does NOT trigger Universal Links; need native tap
+function buildRedirectPage(appUrl, webUrl, mp, marketplace) {
+  const iosAutoRedirect = marketplace !== 'wb';
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -70,16 +73,23 @@ function buildRedirectPage(appUrl, webUrl, mp) {
   <script>
     (function(){
       var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      var iosAutoRedirect = ${iosAutoRedirect};
       var btn = document.getElementById('btn-app');
       var spin = document.getElementById('spin');
       var hint = document.getElementById('hint');
 
-      if (isIOS) {
-        // iOS: Universal Links only fire on native anchor tap — never intercept with JS.
-        // Just make the button prominent; do NOT preventDefault or window.location.href.
-        hint.textContent = 'Нажмите кнопку — откроется приложение';
+      if (isIOS && iosAutoRedirect) {
+        // Ozon / YM on iOS: window.location.href to their domain triggers Universal Links.
+        // Button stays as plain anchor (backup if auto-redirect fails).
+        hint.textContent = 'Переход в приложение...';
+        spin.style.display = 'inline-block';
+        setTimeout(function(){ window.location.href = '${appUrl}'; }, 100);
+      } else if (isIOS) {
+        // WB on iOS: JS navigation does NOT trigger Universal Links for WB.
+        // Only a native user tap on the <a> element does — so don't intercept.
+        hint.textContent = 'Нажмите кнопку — откроется приложение Wildberries';
       } else {
-        // Android: intent:// works fine via window.location.href
+        // Android: intent:// works via window.location.href for all marketplaces.
         hint.textContent = 'Переход в приложение...';
         spin.style.display = 'inline-block';
         btn.addEventListener('click', function(e){
@@ -202,7 +212,7 @@ router.get('/:code', (req, res) => {
         }
       }
 
-      return res.send(buildRedirectPage(appUrl || webUrl, webUrl, mpObj));
+      return res.send(buildRedirectPage(appUrl || webUrl, webUrl, mpObj, mp));
     }
 
     // No mp chosen — show selection page
@@ -306,7 +316,7 @@ router.get('/:code', (req, res) => {
       }
     }
 
-    if (appUrl) return res.send(buildRedirectPage(appUrl, webUrl, mp));
+    if (appUrl) return res.send(buildRedirectPage(appUrl, webUrl, mp, link.marketplace));
   }
 
   res.redirect(302, link.original_url);
