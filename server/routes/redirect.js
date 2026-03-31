@@ -140,8 +140,8 @@ router.get('/:code', (req, res) => {
           // App Links: Android opens WB app and handles the URL → correct product page
           appUrl = `intent://www.wildberries.ru/catalog/${m[1]}/detail.aspx#Intent;scheme=https;package=com.wildberries.ru;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
         } else {
-          // iOS: no public deeplink to specific product — opens app via custom scheme
-          appUrl = `wildberries://product?id=${m[1]}`;
+          // iOS: redirect to web URL — Safari Universal Links open WB app at correct product
+          appUrl = webUrl;
         }
       }
     } else if (link.marketplace === 'ozon') {
@@ -150,7 +150,7 @@ router.get('/:code', (req, res) => {
         if (platform === 'android') {
           appUrl = `intent://www.ozon.ru/product/${m[1]}#Intent;scheme=https;package=ru.ozon.app.android;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
         } else {
-          appUrl = `ozon://product/${m[1]}`;
+          appUrl = webUrl;
         }
       }
     } else if (link.marketplace === 'ym') {
@@ -159,7 +159,7 @@ router.get('/:code', (req, res) => {
         if (platform === 'android') {
           appUrl = `intent://market.yandex.ru/product/${m[1]}#Intent;scheme=https;package=ru.yandex.market;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
         } else {
-          appUrl = `yamarket://product?id=${m[1]}`;
+          appUrl = webUrl;
         }
       }
     }
