@@ -39,7 +39,13 @@ function buildRedirectPage(appUrl, webUrl, mp, platform) {
   const isIos = platform === 'ios';
   const buttonUrl = isIos ? webUrl : appUrl;
   const autoRedirect = isIos
-    ? '' // iOS: no JS redirect — user must tap button to trigger Universal Links
+    ? `<script>
+        // Simulate anchor click — triggers Universal Links on iOS (unlike window.location.href)
+        setTimeout(function(){
+          var a = document.getElementById('btn-app');
+          if(a){ a.click(); }
+        }, 400);
+      <\/script>`
     : `<script>setTimeout(()=>{ window.location.href='${appUrl}'; },400);<\/script>`;
 
   return `<!DOCTYPE html>
@@ -64,7 +70,7 @@ function buildRedirectPage(appUrl, webUrl, mp, platform) {
     <div class="icon">🛍️</div>
     <h2>Открываем ${mp.name}</h2>
     <p>${isIos ? 'Нажмите кнопку — приложение откроется на странице товара.' : 'Переходим в приложение. Если оно не открылось — используйте кнопку ниже.'}</p>
-    <a href="${buttonUrl}" class="btn-app">Открыть в приложении</a>
+    <a id="btn-app" href="${buttonUrl}" class="btn-app">Открыть в приложении</a>
     <a href="${webUrl}" class="btn-web">Открыть в браузере</a>
   </div>
   ${autoRedirect}
