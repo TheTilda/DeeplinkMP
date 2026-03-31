@@ -129,19 +129,44 @@ router.get('/:code', (req, res) => {
 
   // App deeplink
   const mp = MARKETPLACES[link.marketplace];
-  if ((platform === 'ios' || platform === 'android') && mp?.appScheme?.[platform]) {
+  if ((platform === 'ios' || platform === 'android') && mp) {
+    // Use Universal Links (https) — OS opens the app automatically with correct product page.
+    // Custom URI schemes (wildberries://) open the app but lose the product context.
+    const webUrl = link.original_url;
+
     let appUrl = null;
     if (link.marketplace === 'wb') {
-      const m = link.original_url.match(/\/catalog\/(\d+)\//);
-      if (m) appUrl = `wildberries://product?id=${m[1]}`;
+      // Android: intent with https scheme falls through to app via App Links
+      // iOS: Universal Links handle https://www.wildberries.ru URLs natively
+      if (platform === 'android') {
+        const m = link.original_url.match(/\/catalog\/(\d+)\//);
+        if (m) {
+          const encoded = encodeURIComponent(webUrl);
+          appUrl = `intent://www.wildberries.ru/catalog/${m[1]}/detail.aspx#Intent;scheme=https;package=com.wildberries.ru;S.browser_fallback_url=${encoded};end`;
+        }
+      }
+      // iOS: just use webUrl — Universal Links open WB app with correct page
     } else if (link.marketplace === 'ozon') {
-      const m = link.original_url.match(/\/product\/([^/?]+)/);
-      if (m) appUrl = `ozon://product/${m[1]}`;
+      const m = link.original_url.match(/\/product\/([^/?#]+)/);
+      if (m) {
+        if (platform === 'android') {
+          const encoded = encodeURIComponent(webUrl);
+          appUrl = `intent://www.ozon.ru/product/${m[1]}#Intent;scheme=https;package=ru.ozon.app.android;S.browser_fallback_url=${encoded};end`;
+        }
+        // iOS: Universal Links
+      }
     } else if (link.marketplace === 'ym') {
       const m = link.original_url.match(/\/product\/(\d+)/);
-      if (m) appUrl = `yamarket://product?id=${m[1]}`;
+      if (m) {
+        if (platform === 'android') {
+          const encoded = encodeURIComponent(webUrl);
+          appUrl = `intent://market.yandex.ru/product/${m[1]}#Intent;scheme=https;package=ru.yandex.market;S.browser_fallback_url=${encoded};end`;
+        }
+        // iOS: Universal Links
+      }
     }
-    if (appUrl) return res.send(buildRedirectPage(appUrl, link.original_url, mp));
+
+    return res.send(buildRedirectPage(appUrl || webUrl, webUrl, mp));
   }
 
   res.redirect(302, link.original_url);
