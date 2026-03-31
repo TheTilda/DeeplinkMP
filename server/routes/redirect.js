@@ -31,7 +31,17 @@ function getRefererDomain(referer) {
   }
 }
 
-function buildRedirectPage(appUrl, webUrl, mp) {
+function buildRedirectPage(appUrl, webUrl, mp, platform) {
+  // On iOS: clicking an <a href="https://..."> triggers Universal Links → opens app at correct product.
+  //         JS window.location.href to https:// just navigates in browser — won't trigger Universal Links.
+  //         So for iOS we use webUrl as the button href and skip JS auto-redirect.
+  // On Android: intent:// URI handles App Links with package fallback. Auto-redirect via JS works fine.
+  const isIos = platform === 'ios';
+  const buttonUrl = isIos ? webUrl : appUrl;
+  const autoRedirect = isIos
+    ? '' // iOS: no JS redirect — user must tap button to trigger Universal Links
+    : `<script>setTimeout(()=>{ window.location.href='${appUrl}'; },400);<\/script>`;
+
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -47,21 +57,17 @@ function buildRedirectPage(appUrl, webUrl, mp) {
     p{font-size:13px;color:#888;margin-bottom:28px;line-height:1.6}
     .btn-app{display:block;width:100%;padding:14px;background:${mp.color};color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;text-decoration:none;margin-bottom:10px;cursor:pointer}
     .btn-web{display:block;width:100%;padding:13px;background:transparent;color:#888;border:1.5px solid #e8e8e8;border-radius:14px;font-size:14px;text-decoration:none}
-    .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;display:inline-block;animation:s .7s linear infinite;margin-right:8px;vertical-align:middle}
-    @keyframes s{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="icon">🛍️</div>
     <h2>Открываем ${mp.name}</h2>
-    <p>Переходим в приложение. Если оно не открылось — используйте кнопку ниже.</p>
-    <a href="${appUrl}" class="btn-app"><span class="spin"></span>Открыть в приложении</a>
+    <p>${isIos ? 'Нажмите кнопку — приложение откроется на странице товара.' : 'Переходим в приложение. Если оно не открылось — используйте кнопку ниже.'}</p>
+    <a href="${buttonUrl}" class="btn-app">Открыть в приложении</a>
     <a href="${webUrl}" class="btn-web">Открыть в браузере</a>
   </div>
-  <script>
-    setTimeout(()=>{ window.location.href='${appUrl}'; },350);
-  </script>
+  ${autoRedirect}
 </body>
 </html>`;
 }
@@ -137,37 +143,38 @@ router.get('/:code', (req, res) => {
       const m = link.original_url.match(/\/catalog\/(\d+)\//);
       if (m) {
         const id = m[1];
+        const encoded = encodeURIComponent(webUrl);
         if (platform === 'android') {
-          // intent:// is more reliable than wildberries:// on Android — passes product id and falls back to web
-          const encoded = encodeURIComponent(webUrl);
-          appUrl = `intent://product?id=${id}#Intent;scheme=wildberries;package=com.wildberries.ru;S.browser_fallback_url=${encoded};end`;
+          // Use full web URL in intent — WB has App Links, so Android opens app at correct product page
+          appUrl = `intent://www.wildberries.ru/catalog/${id}/detail.aspx#Intent;scheme=https;action=android.intent.action.VIEW;package=com.wildberries.ru;S.browser_fallback_url=${encoded};end`;
         } else {
-          appUrl = `wildberries://product?id=${id}`;
+          // iOS: appUrl unused for button (webUrl used instead), but kept for reference
+          appUrl = webUrl;
         }
       }
     } else if (link.marketplace === 'ozon') {
       const m = link.original_url.match(/\/product\/([^/?#]+)/);
       if (m) {
+        const encoded = encodeURIComponent(webUrl);
         if (platform === 'android') {
-          const encoded = encodeURIComponent(webUrl);
-          appUrl = `intent://product/${m[1]}#Intent;scheme=ozon;package=ru.ozon.app.android;S.browser_fallback_url=${encoded};end`;
+          appUrl = `intent://www.ozon.ru/product/${m[1]}#Intent;scheme=https;action=android.intent.action.VIEW;package=ru.ozon.app.android;S.browser_fallback_url=${encoded};end`;
         } else {
-          appUrl = `ozon://product/${m[1]}`;
+          appUrl = webUrl;
         }
       }
     } else if (link.marketplace === 'ym') {
       const m = link.original_url.match(/\/product\/(\d+)/);
       if (m) {
+        const encoded = encodeURIComponent(webUrl);
         if (platform === 'android') {
-          const encoded = encodeURIComponent(webUrl);
-          appUrl = `intent://product?id=${m[1]}#Intent;scheme=yamarket;package=ru.yandex.market;S.browser_fallback_url=${encoded};end`;
+          appUrl = `intent://market.yandex.ru/product/${m[1]}#Intent;scheme=https;action=android.intent.action.VIEW;package=ru.yandex.market;S.browser_fallback_url=${encoded};end`;
         } else {
-          appUrl = `yamarket://product?id=${m[1]}`;
+          appUrl = webUrl;
         }
       }
     }
 
-    if (appUrl) return res.send(buildRedirectPage(appUrl, webUrl, mp));
+    if (appUrl) return res.send(buildRedirectPage(appUrl, webUrl, mp, platform));
   }
 
   res.redirect(302, link.original_url);
