@@ -1,7 +1,30 @@
 const express = require('express');
+const crypto = require('crypto');
+const { nanoid } = require('nanoid');
 const db = require('../db');
+const { hashPassword } = require('./auth');
 
 const router = express.Router();
+
+// POST /api/admin/users — create user
+router.post('/users', async (req, res) => {
+  const { username, password, email, role } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'username and password are required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Пароль должен быть не менее 8 символов' });
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (existing) return res.status(409).json({ error: 'Пользователь с таким логином уже существует' });
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = await hashPassword(password, salt);
+  const id = nanoid(10);
+
+  db.prepare('INSERT INTO users (id, username, password_hash, email, role, status) VALUES (?, ?, ?, ?, ?, ?)').run(
+    id, username, `${salt}:${hash}`, email || null, role === 'admin' ? 'admin' : 'user', 'approved'
+  );
+
+  res.status(201).json(db.prepare('SELECT id, username, email, role, status, created_at FROM users WHERE id = ?').get(id));
+});
 
 // GET /api/admin/users
 router.get('/users', (req, res) => {

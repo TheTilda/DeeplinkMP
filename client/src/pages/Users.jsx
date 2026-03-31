@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Trash2, Clock, ShieldCheck, UserX } from 'lucide-react';
+import { Trash2, UserPlus, Eye, EyeOff, X, ShieldCheck, User } from 'lucide-react';
 import { useApiFetch } from '../hooks/useAuth';
-
-const STATUS_LABEL = {
-  pending:  { label: 'Ожидает',    cls: 'bg-amber-50 text-amber-700 border-amber-200',  icon: Clock },
-  approved: { label: 'Подтверждён', cls: 'bg-green-50 text-green-700 border-green-200', icon: ShieldCheck },
-  rejected: { label: 'Отклонён',   cls: 'bg-red-50 text-red-600 border-red-200',        icon: UserX },
-};
 
 export default function Users() {
   const apiFetch = useApiFetch();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [actionId, setActionId] = useState(null);
 
   const load = () => {
@@ -24,13 +19,6 @@ export default function Users() {
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const action = async (id, endpoint) => {
-    setActionId(id);
-    await apiFetch(endpoint, { method: 'POST' }).catch(() => {});
-    setActionId(null);
-    load();
-  };
-
   const remove = async (id) => {
     if (!confirm('Удалить пользователя?')) return;
     setActionId(id);
@@ -39,128 +27,182 @@ export default function Users() {
     load();
   };
 
-  const pending = users.filter((u) => u.status === 'pending');
-  const rest = users.filter((u) => u.status !== 'pending');
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Пользователи</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Управление доступом к системе</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Пользователи</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Управление доступом к системе</p>
+        </div>
+        <button onClick={() => setShowForm(true)} className="btn-primary gap-2">
+          <UserPlus className="w-4 h-4" />
+          Добавить
+        </button>
       </div>
+
+      {showForm && (
+        <CreateUserForm
+          onClose={() => setShowForm(false)}
+          onCreated={() => { setShowForm(false); load(); }}
+          apiFetch={apiFetch}
+        />
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-gray-400 text-sm">Загрузка...</div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 text-sm">Нет пользователей</div>
       ) : (
-        <>
-          {pending.length > 0 && (
-            <section>
-              <h2 className="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Ожидают подтверждения ({pending.length})
-              </h2>
-              <div className="space-y-2">
-                {pending.map((u) => (
-                  <UserRow
-                    key={u.id}
-                    user={u}
-                    busy={actionId === u.id}
-                    onApprove={() => action(u.id, `/api/admin/users/${u.id}/approve`)}
-                    onReject={() => action(u.id, `/api/admin/users/${u.id}/reject`)}
-                    onDelete={() => remove(u.id)}
-                  />
-                ))}
+        <div className="space-y-2">
+          {users.map((u) => (
+            <div key={u.id} className="bg-white rounded-2xl border border-gray-100 px-5 py-4 flex items-center gap-4">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                {u.username[0].toUpperCase()}
               </div>
-            </section>
-          )}
 
-          {rest.length > 0 && (
-            <section>
-              <h2 className="text-sm font-semibold text-gray-500 mb-3">Все пользователи</h2>
-              <div className="space-y-2">
-                {rest.map((u) => (
-                  <UserRow
-                    key={u.id}
-                    user={u}
-                    busy={actionId === u.id}
-                    onApprove={() => action(u.id, `/api/admin/users/${u.id}/approve`)}
-                    onReject={() => action(u.id, `/api/admin/users/${u.id}/reject`)}
-                    onDelete={() => remove(u.id)}
-                  />
-                ))}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-gray-900 text-sm">{u.username}</span>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium flex items-center gap-1 ${
+                    u.role === 'admin'
+                      ? 'bg-brand-50 text-brand-700 border-brand-200'
+                      : 'bg-gray-50 text-gray-500 border-gray-200'
+                  }`}>
+                    {u.role === 'admin' ? <ShieldCheck className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                    {u.role === 'admin' ? 'Admin' : 'User'}
+                  </span>
+                </div>
+                {u.email && <div className="text-xs text-gray-400 mt-0.5 truncate">{u.email}</div>}
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {new Date(u.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
               </div>
-            </section>
-          )}
 
-          {users.length === 0 && (
-            <div className="text-center py-16 text-gray-400 text-sm">Нет пользователей</div>
-          )}
-        </>
+              {u.role !== 'admin' && (
+                <button
+                  onClick={() => remove(u.id)}
+                  disabled={actionId === u.id}
+                  title="Удалить"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40 shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function UserRow({ user, busy, onApprove, onReject, onDelete }) {
-  const st = STATUS_LABEL[user.status] || STATUS_LABEL.pending;
-  const Icon = st.icon;
+function CreateUserForm({ onClose, onCreated, apiFetch }) {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('user');
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({ username, password, email: email || undefined, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      onCreated();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4 flex items-center gap-4">
-      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">
-        {user.username[0].toUpperCase()}
+    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-gray-900">Новый пользователь</h2>
+        <button onClick={onClose} className="btn-icon btn-ghost text-gray-400">
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-gray-900 text-sm">{user.username}</span>
-          {user.role === 'admin' && (
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200 font-medium">
-              Admin
-            </span>
-          )}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">Логин</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="username"
+              className="input"
+              required
+              minLength={3}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">Email <span className="text-gray-400">(необязательно)</span></label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="input"
+            />
+          </div>
         </div>
-        {user.email && <div className="text-xs text-gray-400 mt-0.5 truncate">{user.email}</div>}
-        <div className="text-xs text-gray-400 mt-0.5">{new Date(user.created_at).toLocaleDateString('ru')}</div>
-      </div>
 
-      <div className={`hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${st.cls}`}>
-        <Icon className="w-3.5 h-3.5" />
-        {st.label}
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">Пароль</label>
+            <div className="relative">
+              <input
+                type={showPwd ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="минимум 8 символов"
+                className="input pr-10"
+                required
+                minLength={8}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd(!showPwd)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                tabIndex={-1}
+              >
+                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="label">Роль</label>
+            <select value={role} onChange={(e) => setRole(e.target.value)} className="input">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
 
-      {user.role !== 'admin' && (
-        <div className="flex items-center gap-1 shrink-0">
-          {user.status !== 'approved' && (
-            <button
-              onClick={onApprove}
-              disabled={busy}
-              title="Подтвердить"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 transition-colors disabled:opacity-40"
-            >
-              <CheckCircle className="w-4.5 h-4.5" />
-            </button>
-          )}
-          {user.status !== 'rejected' && (
-            <button
-              onClick={onReject}
-              disabled={busy}
-              title="Отклонить"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40"
-            >
-              <XCircle className="w-4.5 h-4.5" />
-            </button>
-          )}
-          <button
-            onClick={onDelete}
-            disabled={busy}
-            title="Удалить"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40"
-          >
-            <Trash2 className="w-4 h-4" />
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="btn btn-ghost text-sm px-4 py-2">Отмена</button>
+          <button type="submit" disabled={loading} className="btn-primary text-sm px-5 py-2">
+            {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Создать'}
           </button>
         </div>
-      )}
+      </form>
     </div>
   );
 }
