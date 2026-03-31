@@ -130,43 +130,44 @@ router.get('/:code', (req, res) => {
   // App deeplink
   const mp = MARKETPLACES[link.marketplace];
   if ((platform === 'ios' || platform === 'android') && mp) {
-    // Use Universal Links (https) — OS opens the app automatically with correct product page.
-    // Custom URI schemes (wildberries://) open the app but lose the product context.
     const webUrl = link.original_url;
-
     let appUrl = null;
+
     if (link.marketplace === 'wb') {
-      // Android: intent with https scheme falls through to app via App Links
-      // iOS: Universal Links handle https://www.wildberries.ru URLs natively
-      if (platform === 'android') {
-        const m = link.original_url.match(/\/catalog\/(\d+)\//);
-        if (m) {
+      const m = link.original_url.match(/\/catalog\/(\d+)\//);
+      if (m) {
+        const id = m[1];
+        if (platform === 'android') {
+          // intent:// is more reliable than wildberries:// on Android — passes product id and falls back to web
           const encoded = encodeURIComponent(webUrl);
-          appUrl = `intent://www.wildberries.ru/catalog/${m[1]}/detail.aspx#Intent;scheme=https;package=com.wildberries.ru;S.browser_fallback_url=${encoded};end`;
+          appUrl = `intent://product?id=${id}#Intent;scheme=wildberries;package=com.wildberries.ru;S.browser_fallback_url=${encoded};end`;
+        } else {
+          appUrl = `wildberries://product?id=${id}`;
         }
       }
-      // iOS: just use webUrl — Universal Links open WB app with correct page
     } else if (link.marketplace === 'ozon') {
       const m = link.original_url.match(/\/product\/([^/?#]+)/);
       if (m) {
         if (platform === 'android') {
           const encoded = encodeURIComponent(webUrl);
-          appUrl = `intent://www.ozon.ru/product/${m[1]}#Intent;scheme=https;package=ru.ozon.app.android;S.browser_fallback_url=${encoded};end`;
+          appUrl = `intent://product/${m[1]}#Intent;scheme=ozon;package=ru.ozon.app.android;S.browser_fallback_url=${encoded};end`;
+        } else {
+          appUrl = `ozon://product/${m[1]}`;
         }
-        // iOS: Universal Links
       }
     } else if (link.marketplace === 'ym') {
       const m = link.original_url.match(/\/product\/(\d+)/);
       if (m) {
         if (platform === 'android') {
           const encoded = encodeURIComponent(webUrl);
-          appUrl = `intent://market.yandex.ru/product/${m[1]}#Intent;scheme=https;package=ru.yandex.market;S.browser_fallback_url=${encoded};end`;
+          appUrl = `intent://product?id=${m[1]}#Intent;scheme=yamarket;package=ru.yandex.market;S.browser_fallback_url=${encoded};end`;
+        } else {
+          appUrl = `yamarket://product?id=${m[1]}`;
         }
-        // iOS: Universal Links
       }
     }
 
-    return res.send(buildRedirectPage(appUrl || webUrl, webUrl, mp));
+    if (appUrl) return res.send(buildRedirectPage(appUrl, webUrl, mp));
   }
 
   res.redirect(302, link.original_url);
