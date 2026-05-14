@@ -20,5 +20,10 @@ COPY server/ ./server/
 # Copy built frontend
 COPY --from=builder /app/client/dist ./client/dist
 
+# Persistent data directory — mount a volume here to survive rebuilds
+RUN mkdir -p /app/data
+VOLUME ["/app/data"]
+ENV DB_PATH=/app/data/deeplinker.db
+
 EXPOSE 3001
 CMD ["node", "--experimental-sqlite", "server/index.js"]

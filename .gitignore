@@ -9,3 +9,5 @@ server/node_modules/
 
 *.log
 .DS_Store
+server/deeplinker.db
+data/

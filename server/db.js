@@ -1,7 +1,13 @@
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
+const fs = require('fs');
 
-const db = new DatabaseSync(path.join(__dirname, 'deeplinker.db'));
+// DB_PATH env var lets Docker/prod point to a mounted volume
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'deeplinker.db');
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
+const db = new DatabaseSync(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
