@@ -6,6 +6,44 @@ const { hashPassword } = require('./auth');
 
 const router = express.Router();
 
+// ── API Token management ─────────────────────────────────────────────────────
+
+// GET /api/admin/tokens
+router.get('/tokens', (req, res) => {
+  const tokens = db.prepare(`
+    SELECT id, name, token_prefix, created_by, last_used_at, created_at
+    FROM api_tokens ORDER BY created_at DESC
+  `).all();
+  res.json(tokens);
+});
+
+// POST /api/admin/tokens
+router.post('/tokens', (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
+
+  const rawToken = 'dlk_' + crypto.randomBytes(24).toString('hex'); // dlk_ + 48 hex = 52 chars
+  const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const prefix = rawToken.slice(0, 12); // "dlk_XXXXXXXX"
+  const id = nanoid(10);
+
+  db.prepare(
+    'INSERT INTO api_tokens (id, name, token_hash, token_prefix, created_by) VALUES (?, ?, ?, ?, ?)'
+  ).run(id, name.trim(), hash, prefix, req.user.id);
+
+  // Return the plaintext token ONCE — never stored again
+  res.status(201).json({ id, name: name.trim(), token: rawToken, token_prefix: prefix, created_at: new Date().toISOString() });
+});
+
+// DELETE /api/admin/tokens/:id
+router.delete('/tokens/:id', (req, res) => {
+  const r = db.prepare('DELETE FROM api_tokens WHERE id = ?').run(req.params.id);
+  if (r.changes === 0) return res.status(404).json({ error: 'Token not found' });
+  res.json({ success: true });
+});
+
+// ── User management ──────────────────────────────────────────────────────────
+
 // POST /api/admin/users — create user
 router.post('/users', async (req, res) => {
   const { username, password, email, role } = req.body;

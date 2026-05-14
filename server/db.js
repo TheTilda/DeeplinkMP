@@ -76,6 +76,19 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS api_tokens (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    token_hash TEXT UNIQUE NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    last_used_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
 // Migrations for users table
 const userCols = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
 if (!userCols.includes('email'))  db.exec("ALTER TABLE users ADD COLUMN email TEXT");
