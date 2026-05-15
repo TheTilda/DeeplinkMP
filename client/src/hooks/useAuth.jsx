@@ -70,10 +70,12 @@ export function useAuth() {
 export function useApiFetch() {
   const { token, logout } = useAuth();
   return useCallback(async (url, options = {}) => {
+    const isFormData = options.body instanceof FormData;
     const res = await fetch(url, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        // Don't set Content-Type for FormData — browser sets it with boundary automatically
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(options.headers || {}),
         Authorization: `Bearer ${token}`,
       },
