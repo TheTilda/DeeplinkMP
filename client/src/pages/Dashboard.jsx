@@ -1,13 +1,134 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Plus, Search, BarChart2, Trash2,
+  Plus, Search, BarChart2, Trash2, Pencil, X, Check, AlertCircle,
   MousePointerClick, Smartphone, Monitor, Apple,
-  Link2, TrendingUp
+  Link2, TrendingUp, Tag, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { useLinks, useDeleteLink, useMultiLinks, useDeleteMultiLink } from '../hooks/useApi';
+import { useLinks, useDeleteLink, useUpdateLink, useMultiLinks, useDeleteMultiLink } from '../hooks/useApi';
 import MarketplaceBadge from '../components/MarketplaceBadge';
 import CopyButton from '../components/CopyButton';
+
+const UTM_FIELDS = [
+  { key: 'utm_source',   label: 'utm_source',   placeholder: 'telegram, vk, google' },
+  { key: 'utm_medium',   label: 'utm_medium',   placeholder: 'cpc, organic, social' },
+  { key: 'utm_campaign', label: 'utm_campaign', placeholder: 'summer_sale_2026' },
+  { key: 'utm_content',  label: 'utm_content',  placeholder: 'banner_top' },
+  { key: 'utm_term',     label: 'utm_term',     placeholder: 'кроссовки nike' },
+];
+
+function EditLinkModal({ link, onClose, onSaved }) {
+  const updateLink = useUpdateLink();
+  const [name,     setName]     = useState(link.name);
+  const [utms,     setUtms]     = useState({
+    utm_source:   link.utm_source   || '',
+    utm_medium:   link.utm_medium   || '',
+    utm_campaign: link.utm_campaign || '',
+    utm_content:  link.utm_content  || '',
+    utm_term:     link.utm_term     || '',
+  });
+  const [showUtm,  setShowUtm]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const updated = await updateLink(link.id, {
+        name,
+        utm_source:   utms.utm_source   || undefined,
+        utm_medium:   utms.utm_medium   || undefined,
+        utm_campaign: utms.utm_campaign || undefined,
+        utm_content:  utms.utm_content  || undefined,
+        utm_term:     utms.utm_term     || undefined,
+      });
+      onSaved(updated);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Редактировать ссылку</h2>
+            <p className="text-xs text-gray-400 mt-0.5 font-mono">/r/{link.short_code}</p>
+          </div>
+          <button onClick={onClose} className="btn-icon btn-ghost text-gray-400">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Name */}
+          <div>
+            <label className="label"><div className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-gray-400" />Название</div></label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input"
+              required
+              autoFocus
+            />
+          </div>
+
+          {/* UTM collapsible */}
+          <div className="rounded-xl border border-gray-100 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowUtm(!showUtm)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-subtle transition-colors"
+            >
+              <span className="text-sm font-medium text-gray-700">UTM-параметры</span>
+              {showUtm ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </button>
+            {showUtm && (
+              <div className="px-4 pb-4 pt-1 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {UTM_FIELDS.map(({ key, label, placeholder }) => (
+                  <div key={key}>
+                    <label className="label-xs">{label}</label>
+                    <input
+                      type="text"
+                      value={utms[key]}
+                      onChange={(e) => setUtms((p) => ({ ...p, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      className="input input-sm font-mono"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+              <AlertCircle className="w-4 h-4 shrink-0" />{error}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Отмена</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1">
+              {saving
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Сохраняем...</>
+                : <><Check className="w-4 h-4" />Сохранить</>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 const MP_FILTERS = [
   { id: 'all',   label: 'Все' },
@@ -38,9 +159,10 @@ export default function Dashboard() {
   const deleteLink = useDeleteLink();
   const deleteMultiLink = useDeleteMultiLink();
   const navigate = useNavigate();
-  const [search, setSearch]   = useState('');
+  const [search, setSearch]     = useState('');
   const [mpFilter, setMpFilter] = useState('all');
   const [deleting, setDeleting] = useState(null);
+  const [editingLink, setEditingLink] = useState(null);
 
   // Merge single + multi links for display
   const allItems = [
@@ -265,6 +387,12 @@ export default function Dashboard() {
                             <BarChart2 className="w-4 h-4" />
                           </button>
                         )}
+                        {!isMulti && (
+                          <button onClick={() => setEditingLink(link)}
+                            className="btn-icon btn-ghost text-gray-400 hover:text-indigo-500" title="Редактировать">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={(e) => handleDelete(link, e)}
                           disabled={deleting === link.id}
                           className="btn-icon btn-ghost text-gray-400 hover:text-red-500" title="Удалить">
@@ -278,6 +406,14 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {editingLink && (
+        <EditLinkModal
+          link={editingLink}
+          onClose={() => setEditingLink(null)}
+          onSaved={() => { setEditingLink(null); refetch(); }}
+        />
       )}
     </div>
   );

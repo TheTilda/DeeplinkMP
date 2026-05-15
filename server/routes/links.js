@@ -107,6 +107,65 @@ router.post('/', (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM links WHERE id = ?').get(id));
 });
 
+// PUT /api/links/:id
+router.put('/:id', (req, res) => {
+  const link = db.prepare('SELECT * FROM links WHERE id = ?').get(req.params.id);
+  if (!link) return res.status(404).json({ error: 'Link not found' });
+
+  const { name, product_id, custom_url, utm_source, utm_medium, utm_campaign, utm_content, utm_term } = req.body;
+
+  const mp = MARKETPLACES[link.marketplace];
+
+  // Determine base URL (without UTM params)
+  let baseUrl;
+  if (custom_url) {
+    baseUrl = custom_url;
+  } else if (product_id) {
+    baseUrl = mp.buildUrl(product_id);
+  } else {
+    // Strip existing UTM params from stored URL
+    try {
+      const u = new URL(link.original_url);
+      for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+        u.searchParams.delete(k);
+      }
+      baseUrl = u.toString();
+    } catch { baseUrl = link.original_url; }
+  }
+
+  // Enforce marketplace-specific campaign rules (same as POST)
+  let effectiveCampaign = utm_campaign;
+  if (link.marketplace === 'ozon') {
+    const setting = db.prepare("SELECT value FROM settings WHERE key = 'ozon_utm_campaign'").get();
+    if (setting?.value) effectiveCampaign = setting.value;
+  } else if (link.marketplace === 'wb') {
+    const sellerId = db.prepare("SELECT value FROM settings WHERE key = 'wb_seller_id'").get();
+    if (sellerId?.value) {
+      const suffix = effectiveCampaign
+        || db.prepare("SELECT value FROM settings WHERE key = 'wb_utm_campaign'").get()?.value
+        || '';
+      effectiveCampaign = suffix ? `${sellerId.value}-id-${suffix}` : `${sellerId.value}-id-`;
+    }
+  }
+
+  const finalUrl = buildFinalUrl(baseUrl, {
+    source: utm_source, medium: utm_medium, campaign: effectiveCampaign,
+    content: utm_content, term: utm_term,
+  });
+
+  db.prepare(`
+    UPDATE links SET name = ?, original_url = ?,
+      utm_source = ?, utm_medium = ?, utm_campaign = ?, utm_content = ?, utm_term = ?
+    WHERE id = ?
+  `).run(
+    name || link.name, finalUrl,
+    utm_source || null, utm_medium || null, effectiveCampaign || null, utm_content || null, utm_term || null,
+    req.params.id
+  );
+
+  res.json(db.prepare('SELECT * FROM links WHERE id = ?').get(req.params.id));
+});
+
 // DELETE /api/links/:id
 router.delete('/:id', (req, res) => {
   const r = db.prepare('DELETE FROM links WHERE id = ?').run(req.params.id);

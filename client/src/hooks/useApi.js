@@ -33,6 +33,16 @@ export function useCreateLink() {
   }, [apiFetch]);
 }
 
+export function useUpdateLink() {
+  const apiFetch = useApiFetch();
+  return useCallback(async (id, payload) => {
+    const res  = await apiFetch(`/api/links/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка при сохранении');
+    return data;
+  }, [apiFetch]);
+}
+
 export function useDeleteLink() {
   const apiFetch = useApiFetch();
   return useCallback(async (id) => {
