@@ -17,9 +17,21 @@ const UTM_FIELDS = [
   { key: 'utm_term',     label: 'utm_term',     placeholder: 'кроссовки nike' },
 ];
 
+// Strip UTM params from a URL string, return base URL
+function stripUtms(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
+      u.searchParams.delete(k);
+    }
+    return u.toString();
+  } catch { return urlStr; }
+}
+
 function EditLinkModal({ link, onClose, onSaved }) {
   const updateLink = useUpdateLink();
   const [name,     setName]     = useState(link.name);
+  const [baseUrl,  setBaseUrl]  = useState(() => stripUtms(link.original_url));
   const [utms,     setUtms]     = useState({
     utm_source:   link.utm_source   || '',
     utm_medium:   link.utm_medium   || '',
@@ -27,7 +39,7 @@ function EditLinkModal({ link, onClose, onSaved }) {
     utm_content:  link.utm_content  || '',
     utm_term:     link.utm_term     || '',
   });
-  const [showUtm,  setShowUtm]  = useState(true);
+  const [showUtm,  setShowUtm]  = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
@@ -38,6 +50,7 @@ function EditLinkModal({ link, onClose, onSaved }) {
     try {
       const updated = await updateLink(link.id, {
         name,
+        custom_url:   baseUrl || undefined,
         utm_source:   utms.utm_source   || undefined,
         utm_medium:   utms.utm_medium   || undefined,
         utm_campaign: utms.utm_campaign || undefined,
@@ -55,9 +68,9 @@ function EditLinkModal({ link, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md animate-slide-up">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Редактировать ссылку</h2>
             <p className="text-xs text-gray-400 mt-0.5 font-mono">/r/{link.short_code}</p>
@@ -81,6 +94,20 @@ function EditLinkModal({ link, onClose, onSaved }) {
             />
           </div>
 
+          {/* URL */}
+          <div>
+            <label className="label"><div className="flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5 text-gray-400" />Ссылка на товар</div></label>
+            <input
+              type="url"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              className="input font-mono text-xs"
+              required
+              placeholder="https://..."
+            />
+            <p className="text-xs text-gray-400 mt-1">Без UTM-параметров — они добавляются автоматически ниже</p>
+          </div>
+
           {/* UTM collapsible */}
           <div className="rounded-xl border border-gray-100 overflow-hidden">
             <button
@@ -88,7 +115,14 @@ function EditLinkModal({ link, onClose, onSaved }) {
               onClick={() => setShowUtm(!showUtm)}
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-subtle transition-colors"
             >
-              <span className="text-sm font-medium text-gray-700">UTM-параметры</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">UTM-параметры</span>
+                {Object.values(utms).some(Boolean) && (
+                  <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-1.5 py-0.5 rounded-full font-medium">
+                    {Object.values(utms).filter(Boolean).length} заполнено
+                  </span>
+                )}
+              </div>
               {showUtm ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
             </button>
             {showUtm && (
