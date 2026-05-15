@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Lock, Eye, EyeOff, Check, AlertCircle, ShieldCheck,
-  Key, Plus, Trash2, Copy, X, Terminal, RefreshCw,
+  Key, Plus, Trash2, Copy, X, Terminal, RefreshCw, Settings2,
 } from 'lucide-react';
 import { useAuth, useApiFetch } from '../hooks/useAuth';
 
@@ -376,6 +376,102 @@ function ApiTokensSection() {
   );
 }
 
+// ── Ozon Settings section (admin only) ───────────────────────────────────────
+
+function OzonSettingsSection() {
+  const apiFetch = useApiFetch();
+  const [campaign, setCampaign] = useState('');
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [success,  setSuccess]  = useState(false);
+  const [error,    setError]    = useState('');
+
+  useEffect(() => {
+    apiFetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => setCampaign(data.ozon_utm_campaign || ''))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [apiFetch]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess(false);
+    setSaving(true);
+    try {
+      const res = await apiFetch('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ ozon_utm_campaign: campaign.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка сохранения');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+          <Settings2 className="w-4 h-4 text-blue-500" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Настройки Ozon</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Параметры по умолчанию для диплинков Ozon</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 py-4 text-gray-400 text-sm">
+          <RefreshCw className="w-4 h-4 animate-spin" /> Загрузка...
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">utm_campaign по умолчанию</label>
+            <input
+              type="text"
+              value={campaign}
+              onChange={(e) => setCampaign(e.target.value)}
+              placeholder="например: seller_cabinet_2026"
+              className="input font-mono"
+              maxLength={200}
+            />
+            <p className="text-xs text-gray-400 mt-1.5">
+              Автоматически добавляется ко всем новым диплинкам Ozon, если utm_campaign не указан вручную.
+            </p>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-sm text-emerald-700">
+              <Check className="w-4 h-4 shrink-0" />
+              Настройки сохранены
+            </div>
+          )}
+
+          <button type="submit" disabled={saving} className="btn-primary w-full py-2.5">
+            {saving
+              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Сохраняем...</>
+              : <><Check className="w-4 h-4" />Сохранить</>
+            }
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // ── Main Settings page ────────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -409,6 +505,7 @@ export default function Settings() {
 
       <PasswordSection />
 
+      {isAdmin && <OzonSettingsSection />}
       {isAdmin && <ApiTokensSection />}
     </div>
   );

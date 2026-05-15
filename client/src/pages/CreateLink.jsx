@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Link2, Tag, ChevronDown, ChevronUp,
   Check, BarChart2, Plus, Info, Layers
 } from 'lucide-react';
 import { useCreateLink, useCreateMultiLink } from '../hooks/useApi';
+import { useApiFetch } from '../hooks/useAuth';
 import CopyButton from '../components/CopyButton';
 
 const MARKETPLACES = [
@@ -78,6 +79,7 @@ export default function CreateLink() {
 function CreateSingleLink({ onSwitchToMulti }) {
   const navigate = useNavigate();
   const createLink = useCreateLink();
+  const apiFetch = useApiFetch();
 
   const [mp, setMp] = useState('wb');
   const [name, setName] = useState('');
@@ -89,6 +91,14 @@ function CreateSingleLink({ onSwitchToMulti }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
+  const [defaultOzonCampaign, setDefaultOzonCampaign] = useState('');
+
+  useEffect(() => {
+    apiFetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => setDefaultOzonCampaign(data.ozon_utm_campaign || ''))
+      .catch(() => {});
+  }, [apiFetch]);
 
   const mpCfg = MARKETPLACES.find((m) => m.id === mp);
   const previewUrl = !useCustom ? buildPreviewUrl(mp, productId, utms) : null;
@@ -293,9 +303,19 @@ function CreateSingleLink({ onSwitchToMulti }) {
                     type="text"
                     value={utms[key]}
                     onChange={(e) => setUtms((p) => ({ ...p, [key]: e.target.value }))}
-                    placeholder={placeholder}
+                    placeholder={
+                      key === 'campaign' && mp === 'ozon' && defaultOzonCampaign && !utms.campaign
+                        ? defaultOzonCampaign
+                        : placeholder
+                    }
                     className="input input-sm font-mono"
                   />
+                  {key === 'campaign' && mp === 'ozon' && defaultOzonCampaign && !utms.campaign && (
+                    <p className="text-[11px] text-blue-500 mt-1 flex items-center gap-1">
+                      <Info className="w-3 h-3 shrink-0" />
+                      Будет подставлено автоматически: <span className="font-mono">{defaultOzonCampaign}</span>
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

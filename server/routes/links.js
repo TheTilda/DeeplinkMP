@@ -72,8 +72,15 @@ router.post('/', (req, res) => {
   else if (product_id) baseUrl = mp.buildUrl(product_id);
   else return res.status(400).json({ error: 'product_id or custom_url is required' });
 
+  // Auto-apply ozon_utm_campaign from settings if not explicitly provided
+  let effectiveCampaign = utm_campaign;
+  if (marketplace === 'ozon' && !effectiveCampaign) {
+    const setting = db.prepare("SELECT value FROM settings WHERE key = 'ozon_utm_campaign'").get();
+    if (setting?.value) effectiveCampaign = setting.value;
+  }
+
   const finalUrl = buildFinalUrl(baseUrl, {
-    source: utm_source, medium: utm_medium, campaign: utm_campaign,
+    source: utm_source, medium: utm_medium, campaign: effectiveCampaign,
     content: utm_content, term: utm_term,
   });
 
@@ -85,7 +92,7 @@ router.post('/', (req, res) => {
       utm_source, utm_medium, utm_campaign, utm_content, utm_term)
     VALUES (?,?,?,?,?, ?,?,?,?,?)
   `).run(id, name, marketplace, finalUrl, short_code,
-    utm_source || null, utm_medium || null, utm_campaign || null, utm_content || null, utm_term || null);
+    utm_source || null, utm_medium || null, effectiveCampaign || null, utm_content || null, utm_term || null);
 
   res.status(201).json(db.prepare('SELECT * FROM links WHERE id = ?').get(id));
 });

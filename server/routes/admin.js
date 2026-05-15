@@ -42,6 +42,23 @@ router.delete('/tokens/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Global settings ──────────────────────────────────────────────────────────
+
+// PUT /api/admin/settings
+router.put('/settings', (req, res) => {
+  const allowed = ['ozon_utm_campaign'];
+  const stmt = db.prepare(
+    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+  );
+  for (const key of allowed) {
+    if (key in req.body) {
+      const val = req.body[key] ? String(req.body[key]).trim() : null;
+      stmt.run(key, val);
+    }
+  }
+  res.json({ success: true });
+});
+
 // ── User management ──────────────────────────────────────────────────────────
 
 // POST /api/admin/users — create user

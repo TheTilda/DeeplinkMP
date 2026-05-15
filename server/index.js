@@ -49,6 +49,13 @@ app.use('/api/analytics', requireAuth, analyticsRouter);
 app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 app.use('/api/multilinks', requireAuth, multilinksRouter);
 
+// Public settings (read-only, all authenticated users)
+app.get('/api/settings', requireAuth, (_req, res) => {
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const settings = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  res.json(settings);
+});
+
 // Health check (public)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', baseUrl: BASE_URL }));
 
