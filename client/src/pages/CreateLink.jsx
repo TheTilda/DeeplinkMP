@@ -92,11 +92,19 @@ function CreateSingleLink({ onSwitchToMulti }) {
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
   const [defaultOzonCampaign, setDefaultOzonCampaign] = useState('');
+  const [defaultWbCampaign,   setDefaultWbCampaign]   = useState('');
 
   useEffect(() => {
     apiFetch('/api/settings')
       .then((r) => r.json())
-      .then((data) => setDefaultOzonCampaign(data.ozon_utm_campaign || ''))
+      .then((data) => {
+        setDefaultOzonCampaign(data.ozon_utm_campaign || '');
+        const wbSeller = data.wb_seller_id || '';
+        const wbCamp   = data.wb_utm_campaign || '';
+        if (wbSeller) {
+          setDefaultWbCampaign(wbCamp ? `${wbSeller}-id-${wbCamp}` : `${wbSeller}-id-`);
+        }
+      })
       .catch(() => {});
   }, [apiFetch]);
 
@@ -314,6 +322,12 @@ function CreateSingleLink({ onSwitchToMulti }) {
                     <p className="text-[11px] text-blue-500 mt-1 flex items-center gap-1">
                       <Info className="w-3 h-3 shrink-0" />
                       Всегда используется: <span className="font-mono font-semibold">{defaultOzonCampaign}</span>
+                    </p>
+                  )}
+                  {key === 'campaign' && mp === 'wb' && defaultWbCampaign && (
+                    <p className="text-[11px] text-purple-500 mt-1 flex items-center gap-1">
+                      <Info className="w-3 h-3 shrink-0" />
+                      Всегда используется: <span className="font-mono font-semibold">{defaultWbCampaign}</span>
                     </p>
                   )}
                 </div>

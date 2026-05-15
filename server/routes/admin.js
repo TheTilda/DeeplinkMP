@@ -46,7 +46,7 @@ router.delete('/tokens/:id', (req, res) => {
 
 // PUT /api/admin/settings
 router.put('/settings', (req, res) => {
-  const allowed = ['ozon_utm_campaign'];
+  const allowed = ['ozon_utm_campaign', 'wb_seller_id', 'wb_utm_campaign'];
   const stmt = db.prepare(
     'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
   );

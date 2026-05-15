@@ -376,6 +376,133 @@ function ApiTokensSection() {
   );
 }
 
+// ── Wildberries Settings section (admin only) ────────────────────────────────
+
+function WildberriesSettingsSection() {
+  const apiFetch = useApiFetch();
+  const [sellerId, setSellerId] = useState('');
+  const [campaign, setCampaign] = useState('');
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [success,  setSuccess]  = useState(false);
+  const [error,    setError]    = useState('');
+
+  useEffect(() => {
+    apiFetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        setSellerId(data.wb_seller_id || '');
+        setCampaign(data.wb_utm_campaign || '');
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [apiFetch]);
+
+  const preview = sellerId
+    ? `${sellerId}-id-${campaign || '<название_кампании>'}`
+    : null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess(false);
+    if (!sellerId.trim()) { setError('ID продавца обязателен'); return; }
+    setSaving(true);
+    try {
+      const res = await apiFetch('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          wb_seller_id: sellerId.trim() || null,
+          wb_utm_campaign: campaign.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка сохранения');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+          <Settings2 className="w-4 h-4 text-purple-500" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Настройки Wildberries</h2>
+          <p className="text-xs text-gray-400 mt-0.5">UTM-метка кабинета продавца для диплинков WB</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 py-4 text-gray-400 text-sm">
+          <RefreshCw className="w-4 h-4 animate-spin" /> Загрузка...
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">ID продавца WB</label>
+              <input
+                type="text"
+                value={sellerId}
+                onChange={(e) => setSellerId(e.target.value.replace(/\D/g, ''))}
+                placeholder="331122"
+                className="input font-mono"
+                maxLength={20}
+              />
+              <p className="text-xs text-gray-400 mt-1">Ваш числовой ID поставщика на WB</p>
+            </div>
+            <div>
+              <label className="label">Название кампании</label>
+              <input
+                type="text"
+                value={campaign}
+                onChange={(e) => setCampaign(e.target.value)}
+                placeholder="my_ad_campaign"
+                className="input font-mono"
+                maxLength={200}
+              />
+              <p className="text-xs text-gray-400 mt-1">Часть после <code className="font-mono">{sellerId || '331122'}-id-</code></p>
+            </div>
+          </div>
+
+          {preview && (
+            <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl">
+              <p className="text-[11px] text-purple-500 font-medium mb-1 uppercase tracking-wide">Итоговый utm_campaign</p>
+              <code className="text-xs font-mono text-purple-800 break-all">{preview}</code>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-sm text-emerald-700">
+              <Check className="w-4 h-4 shrink-0" />
+              Настройки сохранены
+            </div>
+          )}
+
+          <button type="submit" disabled={saving} className="btn-primary w-full py-2.5">
+            {saving
+              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Сохраняем...</>
+              : <><Check className="w-4 h-4" />Сохранить</>
+            }
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // ── Ozon Settings section (admin only) ───────────────────────────────────────
 
 function OzonSettingsSection() {
@@ -505,6 +632,7 @@ export default function Settings() {
 
       <PasswordSection />
 
+      {isAdmin && <WildberriesSettingsSection />}
       {isAdmin && <OzonSettingsSection />}
       {isAdmin && <ApiTokensSection />}
     </div>

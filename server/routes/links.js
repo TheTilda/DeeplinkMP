@@ -72,11 +72,20 @@ router.post('/', (req, res) => {
   else if (product_id) baseUrl = mp.buildUrl(product_id);
   else return res.status(400).json({ error: 'product_id or custom_url is required' });
 
-  // For Ozon: always enforce utm_campaign from settings (overrides any manually provided value)
+  // Enforce utm_campaign from settings (overrides any manually provided value)
   let effectiveCampaign = utm_campaign;
   if (marketplace === 'ozon') {
     const setting = db.prepare("SELECT value FROM settings WHERE key = 'ozon_utm_campaign'").get();
     if (setting?.value) effectiveCampaign = setting.value;
+  } else if (marketplace === 'wb') {
+    const sellerId  = db.prepare("SELECT value FROM settings WHERE key = 'wb_seller_id'").get();
+    const campaign  = db.prepare("SELECT value FROM settings WHERE key = 'wb_utm_campaign'").get();
+    if (sellerId?.value) {
+      // Always build: {seller_id}-id-{campaign} — campaign part is optional
+      effectiveCampaign = campaign?.value
+        ? `${sellerId.value}-id-${campaign.value}`
+        : `${sellerId.value}-id-`;
+    }
   }
 
   const finalUrl = buildFinalUrl(baseUrl, {
