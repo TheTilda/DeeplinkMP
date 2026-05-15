@@ -80,12 +80,14 @@ router.post('/', (req, res) => {
   } else if (marketplace === 'wb') {
     const sellerId = db.prepare("SELECT value FROM settings WHERE key = 'wb_seller_id'").get();
     if (sellerId?.value) {
+      const prefix = `${sellerId.value}-id-`;
       // Use provided campaign or fall back to default from settings
-      const suffix = effectiveCampaign
+      let suffix = effectiveCampaign
         || db.prepare("SELECT value FROM settings WHERE key = 'wb_utm_campaign'").get()?.value
         || '';
-      // Always prepend {seller_id}-id- prefix (WB attribution requirement)
-      effectiveCampaign = suffix ? `${sellerId.value}-id-${suffix}` : `${sellerId.value}-id-`;
+      // Strip prefix if already present (idempotent — prevents double-prefixing on edit)
+      if (suffix.startsWith(prefix)) suffix = suffix.slice(prefix.length);
+      effectiveCampaign = suffix ? `${prefix}${suffix}` : prefix;
     }
   }
 
