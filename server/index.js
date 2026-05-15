@@ -12,6 +12,7 @@ const redirectRouter = require('./routes/redirect');
 const { router: authRouter, hashPassword } = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const multilinksRouter = require('./routes/multilinks');
+const wbReportRouter = require('./routes/wbreport');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 const db = require('./db');
 
@@ -47,6 +48,28 @@ app.use('/api/auth', authRouter);
 app.use('/api/links', requireAuth, linksRouter);
 app.use('/api/analytics', requireAuth, analyticsRouter);
 app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
+app.use('/api/admin/wb-report', requireAuth, requireAdmin, wbReportRouter);
+// WB stats for a campaign — readable by all authenticated users
+app.get('/api/wb-stats/:campaign', requireAuth, (req, res) => {
+  const campaign = decodeURIComponent(req.params.campaign);
+  const db = require('./db');
+  const summary = db.prepare(`
+    SELECT SUM(clicks) as clicks, SUM(orders) as orders, SUM(revenue) as revenue,
+           MIN(date) as date_from, MAX(date) as date_to
+    FROM wb_report_rows WHERE utm_campaign = ?
+  `).get(campaign);
+  const byDate = db.prepare(`
+    SELECT date, SUM(clicks) as clicks, SUM(orders) as orders, SUM(revenue) as revenue
+    FROM wb_report_rows WHERE utm_campaign = ?
+    GROUP BY date ORDER BY date DESC LIMIT 60
+  `).all(campaign);
+  const byPlatform = db.prepare(`
+    SELECT platform, SUM(clicks) as clicks, SUM(orders) as orders
+    FROM wb_report_rows WHERE utm_campaign = ?
+    GROUP BY platform ORDER BY clicks DESC
+  `).all(campaign);
+  res.json({ campaign, summary, byDate, byPlatform });
+});
 app.use('/api/multilinks', requireAuth, multilinksRouter);
 
 // Public settings (read-only, all authenticated users)

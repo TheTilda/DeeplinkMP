@@ -3,13 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MousePointerClick, Users, Apple, Smartphone,
   Monitor, Tag, ExternalLink, Globe, Link2, Clock,
-  Layers, Map, Share2, Activity
+  Layers, Map, Share2, Activity, ShoppingCart, TrendingUp, Package,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { useLinkAnalytics } from '../hooks/useApi';
+import { useLinkAnalytics, useWbStats } from '../hooks/useApi';
 import MarketplaceBadge from '../components/MarketplaceBadge';
 import CopyButton from '../components/CopyButton';
 import BreakdownBar from '../components/BreakdownBar';
@@ -90,6 +90,9 @@ export default function LinkAnalytics() {
   const [period,  setPeriod]  = useState('30');
   const [tab,     setTab]     = useState('overview');
   const { data, loading, error } = useLinkAnalytics(id, period);
+  const { data: wbData, loading: wbLoading } = useWbStats(
+    data?.link?.marketplace === 'wb' ? data?.link?.utm_campaign : null
+  );
 
   if (loading) return (
     <div className="card p-16 flex items-center justify-center">
@@ -174,7 +177,10 @@ export default function LinkAnalytics() {
 
       {/* ── Tabs ── */}
       <div className="flex gap-1 border-b border-gray-100 overflow-x-auto">
-        {TABS.map(({ id: tid, label, icon: Icon }) => (
+        {[
+          ...TABS,
+          ...(link.marketplace === 'wb' ? [{ id: 'wb', label: 'WB отчёт', icon: ShoppingCart }] : []),
+        ].map(({ id: tid, label, icon: Icon }) => (
           <button
             key={tid}
             onClick={() => setTab(tid)}
@@ -397,6 +403,99 @@ export default function LinkAnalytics() {
                 ))}
               </div>
             </SectionCard>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════ WB REPORT ══════════════ */}
+      {tab === 'wb' && (
+        <div className="space-y-4">
+          {wbLoading ? (
+            <div className="card p-12 flex items-center justify-center">
+              <div className="w-5 h-5 border-2 border-gray-200 border-t-brand-500 rounded-full animate-spin" />
+            </div>
+          ) : !wbData || !wbData.summary?.clicks ? (
+            <div className="card p-10 text-center">
+              <ShoppingCart className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-500 mb-1">Нет данных WB</p>
+              <p className="text-xs text-gray-400">Загрузите отчёт «Внешний трафик» в Настройках</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="stat-card">
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2">
+                    <MousePointerClick className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 leading-none">{wbData.summary.clicks ?? 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Переходов (WB)</p>
+                </div>
+                <div className="stat-card">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 leading-none">{wbData.summary.orders ?? 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Заказано товаров</p>
+                </div>
+                <div className="stat-card">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-2">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 leading-none">
+                    {wbData.summary.revenue ? Math.round(wbData.summary.revenue).toLocaleString('ru') : 0}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Выручка, ₽</p>
+                </div>
+              </div>
+
+              {/* Period */}
+              <div className="card p-4">
+                <p className="text-xs text-gray-400">
+                  Данные за период: <span className="font-medium text-gray-700">{wbData.summary.date_from}</span> — <span className="font-medium text-gray-700">{wbData.summary.date_to}</span>
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">utm_campaign: <code className="font-mono text-gray-600">{wbData.campaign}</code></p>
+              </div>
+
+              {/* By platform */}
+              {wbData.byPlatform?.length > 0 && (
+                <SectionCard title="По платформам (WB)" icon={Layers}>
+                  <div className="space-y-2">
+                    {wbData.byPlatform.map((p) => {
+                      const total = wbData.byPlatform.reduce((s, r) => s + r.clicks, 0);
+                      const pct   = total ? Math.round((p.clicks / total) * 100) : 0;
+                      return (
+                        <div key={p.platform} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 w-16 shrink-0">{p.platform || '—'}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-purple-400 rounded-full" style={{ width: `${Math.max(pct, 1)}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-700 w-16 text-right">{p.clicks} · {p.orders} зак.</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* By date */}
+              {wbData.byDate?.length > 0 && (
+                <SectionCard title="По дням" icon={Activity}>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {wbData.byDate.map((d) => (
+                      <div key={d.date} className="flex items-center justify-between px-3 py-2 bg-surface-subtle rounded-lg text-xs">
+                        <span className="font-medium text-gray-700">{d.date}</span>
+                        <div className="flex items-center gap-4 text-gray-500">
+                          <span>{d.clicks} перех.</span>
+                          <span>{d.orders} зак.</span>
+                          <span className="font-medium text-gray-700">{d.revenue ? Math.round(d.revenue).toLocaleString('ru') + ' ₽' : '—'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+            </>
           )}
         </div>
       )}

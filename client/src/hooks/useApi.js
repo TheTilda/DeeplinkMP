@@ -109,6 +109,24 @@ export function useDeleteMultiLink() {
   }, [apiFetch]);
 }
 
+export function useWbStats(campaign) {
+  const apiFetch = useApiFetch();
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!campaign) return;
+    setLoading(true);
+    apiFetch(`/api/wb-stats/${encodeURIComponent(campaign)}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [campaign, apiFetch]);
+
+  return { data, loading };
+}
+
 export function useAnalytics(period = '30') {
   const apiFetch = useApiFetch();
   const [data,    setData]    = useState(null);

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Lock, Eye, EyeOff, Check, AlertCircle, ShieldCheck,
   Key, Plus, Trash2, Copy, X, Terminal, RefreshCw, Settings2,
+  Upload, FileSpreadsheet, Calendar,
 } from 'lucide-react';
 import { useAuth, useApiFetch } from '../hooks/useAuth';
 
@@ -599,6 +600,116 @@ function OzonSettingsSection() {
   );
 }
 
+// ── WB Report upload section (admin only) ────────────────────────────────────
+
+function WbReportSection() {
+  const apiFetch  = useApiFetch();
+  const fileRef   = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [result,    setResult]    = useState(null);
+  const [error,     setError]     = useState('');
+  const [dates,     setDates]     = useState([]);
+  const [loadingDates, setLoadingDates] = useState(true);
+
+  const loadDates = useCallback(() => {
+    setLoadingDates(true);
+    apiFetch('/api/admin/wb-report/dates')
+      .then((r) => r.json())
+      .then(setDates)
+      .catch(() => {})
+      .finally(() => setLoadingDates(false));
+  }, [apiFetch]);
+
+  useEffect(() => { loadDates(); }, [loadDates]);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(''); setResult(null);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res  = await apiFetch('/api/admin/wb-report', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка загрузки');
+      setResult(data);
+      loadDates();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Отчёт WB — Внешний трафик</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Загружайте xlsx-выгрузку из кабинета Wildberries</p>
+        </div>
+      </div>
+
+      {/* Upload zone */}
+      <div
+        className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-brand-300 hover:bg-brand-50/30 transition-colors"
+        onClick={() => fileRef.current?.click()}
+      >
+        <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFile} />
+        <Upload className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+        <p className="text-sm font-medium text-gray-600">
+          {uploading ? 'Загружаем...' : 'Нажмите или перетащите файл'}
+        </p>
+        <p className="text-xs text-gray-400 mt-1">xlsx · Внешний трафик WB</p>
+      </div>
+
+      {error && (
+        <div className="mt-3 flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+          <AlertCircle className="w-4 h-4 shrink-0" />{error}
+        </div>
+      )}
+      {result && (
+        <div className="mt-3 flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-sm text-emerald-700">
+          <Check className="w-4 h-4 shrink-0" />
+          Загружено {result.inserted} строк за {result.dates?.length} дат
+        </div>
+      )}
+
+      {/* Uploaded dates */}
+      <div className="mt-4">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Загруженные данные</p>
+        {loadingDates ? (
+          <div className="flex items-center gap-2 text-gray-400 text-xs"><RefreshCw className="w-3.5 h-3.5 animate-spin" />Загрузка...</div>
+        ) : dates.length === 0 ? (
+          <p className="text-xs text-gray-400">Данных пока нет</p>
+        ) : (
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {dates.map((d) => (
+              <div key={d.date} className="flex items-center justify-between px-3 py-2 bg-surface-subtle rounded-lg text-xs">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                  <span className="font-medium text-gray-700">{d.date}</span>
+                </div>
+                <div className="flex items-center gap-3 text-gray-400">
+                  <span>{d.clicks} переходов</span>
+                  <span>{d.orders} заказов</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Settings page ────────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -634,6 +745,7 @@ export default function Settings() {
 
       {isAdmin && <WildberriesSettingsSection />}
       {isAdmin && <OzonSettingsSection />}
+      {isAdmin && <WbReportSection />}
       {isAdmin && <ApiTokensSection />}
     </div>
   );

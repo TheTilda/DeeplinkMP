@@ -102,6 +102,25 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS wb_report_rows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    utm_source TEXT,
+    utm_medium TEXT,
+    utm_campaign TEXT,
+    utm_term TEXT,
+    utm_content TEXT,
+    clicks INTEGER DEFAULT 0,
+    orders INTEGER DEFAULT 0,
+    revenue REAL DEFAULT 0,
+    platform TEXT,
+    uploaded_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_wb_report_campaign ON wb_report_rows(utm_campaign);
+  CREATE INDEX IF NOT EXISTS idx_wb_report_date ON wb_report_rows(date);
+`);
+
 // Migrations for users table
 const userCols = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
 if (!userCols.includes('email'))  db.exec("ALTER TABLE users ADD COLUMN email TEXT");
