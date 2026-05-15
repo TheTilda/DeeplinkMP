@@ -78,13 +78,14 @@ router.post('/', (req, res) => {
     const setting = db.prepare("SELECT value FROM settings WHERE key = 'ozon_utm_campaign'").get();
     if (setting?.value) effectiveCampaign = setting.value;
   } else if (marketplace === 'wb') {
-    const sellerId  = db.prepare("SELECT value FROM settings WHERE key = 'wb_seller_id'").get();
-    const campaign  = db.prepare("SELECT value FROM settings WHERE key = 'wb_utm_campaign'").get();
+    const sellerId = db.prepare("SELECT value FROM settings WHERE key = 'wb_seller_id'").get();
     if (sellerId?.value) {
-      // Always build: {seller_id}-id-{campaign} — campaign part is optional
-      effectiveCampaign = campaign?.value
-        ? `${sellerId.value}-id-${campaign.value}`
-        : `${sellerId.value}-id-`;
+      // Use provided campaign or fall back to default from settings
+      const suffix = effectiveCampaign
+        || db.prepare("SELECT value FROM settings WHERE key = 'wb_utm_campaign'").get()?.value
+        || '';
+      // Always prepend {seller_id}-id- prefix (WB attribution requirement)
+      effectiveCampaign = suffix ? `${sellerId.value}-id-${suffix}` : `${sellerId.value}-id-`;
     }
   }
 

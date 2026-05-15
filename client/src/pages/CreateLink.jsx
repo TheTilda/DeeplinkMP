@@ -92,18 +92,14 @@ function CreateSingleLink({ onSwitchToMulti }) {
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
   const [defaultOzonCampaign, setDefaultOzonCampaign] = useState('');
-  const [defaultWbCampaign,   setDefaultWbCampaign]   = useState('');
+  const [wbSellerPrefix,      setWbSellerPrefix]      = useState(''); // e.g. "331122-id-"
 
   useEffect(() => {
     apiFetch('/api/settings')
       .then((r) => r.json())
       .then((data) => {
         setDefaultOzonCampaign(data.ozon_utm_campaign || '');
-        const wbSeller = data.wb_seller_id || '';
-        const wbCamp   = data.wb_utm_campaign || '';
-        if (wbSeller) {
-          setDefaultWbCampaign(wbCamp ? `${wbSeller}-id-${wbCamp}` : `${wbSeller}-id-`);
-        }
+        if (data.wb_seller_id) setWbSellerPrefix(`${data.wb_seller_id}-id-`);
       })
       .catch(() => {});
   }, [apiFetch]);
@@ -324,10 +320,10 @@ function CreateSingleLink({ onSwitchToMulti }) {
                       Всегда используется: <span className="font-mono font-semibold">{defaultOzonCampaign}</span>
                     </p>
                   )}
-                  {key === 'campaign' && mp === 'wb' && defaultWbCampaign && (
+                  {key === 'campaign' && mp === 'wb' && wbSellerPrefix && (
                     <p className="text-[11px] text-purple-500 mt-1 flex items-center gap-1">
                       <Info className="w-3 h-3 shrink-0" />
-                      Всегда используется: <span className="font-mono font-semibold">{defaultWbCampaign}</span>
+                      Итог: <span className="font-mono font-semibold">{wbSellerPrefix}{utms.campaign || '…'}</span>
                     </p>
                   )}
                 </div>

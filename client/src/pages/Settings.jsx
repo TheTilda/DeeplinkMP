@@ -458,7 +458,7 @@ function WildberriesSettingsSection() {
               <p className="text-xs text-gray-400 mt-1">Ваш числовой ID поставщика на WB</p>
             </div>
             <div>
-              <label className="label">Название кампании</label>
+              <label className="label">Кампания по умолчанию</label>
               <input
                 type="text"
                 value={campaign}
@@ -467,7 +467,7 @@ function WildberriesSettingsSection() {
                 className="input font-mono"
                 maxLength={200}
               />
-              <p className="text-xs text-gray-400 mt-1">Часть после <code className="font-mono">{sellerId || '331122'}-id-</code></p>
+              <p className="text-xs text-gray-400 mt-1">Используется если не передан utm_campaign. Иначе префикс добавляется к переданному значению.</p>
             </div>
           </div>
 
