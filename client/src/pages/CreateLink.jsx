@@ -310,10 +310,10 @@ function CreateSingleLink({ onSwitchToMulti }) {
                     }
                     className="input input-sm font-mono"
                   />
-                  {key === 'campaign' && mp === 'ozon' && defaultOzonCampaign && !utms.campaign && (
+                  {key === 'campaign' && mp === 'ozon' && defaultOzonCampaign && (
                     <p className="text-[11px] text-blue-500 mt-1 flex items-center gap-1">
                       <Info className="w-3 h-3 shrink-0" />
-                      Будет подставлено автоматически: <span className="font-mono">{defaultOzonCampaign}</span>
+                      Всегда используется: <span className="font-mono font-semibold">{defaultOzonCampaign}</span>
                     </p>
                   )}
                 </div>
